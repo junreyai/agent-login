@@ -459,7 +459,7 @@ const Dashboard = () => {
                             title="Delete user"
                           >
                             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-7 7-7-7" />
                             </svg>
                           </button>
                         )}
@@ -582,16 +582,24 @@ const Dashboard = () => {
                   <label className="block text-sm font-medium text-blue-900 mb-1">
                     Role
                   </label>
-                  <select
-                    name="role"
-                    value={formData.role}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-900"
-                    required
-                  >
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      name="role"
+                      value={formData.role}
+                      onChange={handleInputChange}
+                      className="appearance-none w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 text-gray-900 pr-10 transition-all hover:from-blue-100 hover:to-indigo-100 cursor-pointer shadow-sm"
+                      required
+                    >
+                      <option value="user" className="py-2">👤 User</option>
+                      <option value="admin" className="py-2">👑 Admin</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-600">
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                    <div className="absolute inset-0 rounded-lg pointer-events-none ring-1 ring-inset ring-gray-300"></div>
+                  </div>
                 </div>
 
                 <div className="flex justify-end space-x-3 mt-6">
@@ -734,16 +742,24 @@ const Dashboard = () => {
                   <label className="block text-sm font-medium text-blue-900 mb-1">
                     Role
                   </label>
-                  <select
-                    name="role"
-                    value={editFormData.role}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, role: e.target.value }))}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-900"
-                    required
-                  >
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      name="role"
+                      value={editFormData.role}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, role: e.target.value }))}
+                      className="appearance-none w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 text-gray-900 pr-10 transition-all hover:from-blue-100 hover:to-indigo-100 cursor-pointer shadow-sm"
+                      required
+                    >
+                      <option value="user" className="py-2">👤 User</option>
+                      <option value="admin" className="py-2">👑 Admin</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-600">
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                    <div className="absolute inset-0 rounded-lg pointer-events-none ring-1 ring-inset ring-gray-300"></div>
+                  </div>
                 </div>
 
                 <div className="flex justify-end space-x-3 mt-6">
