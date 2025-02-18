@@ -27,17 +27,29 @@ const Settings = () => {
     setLoading(true)
     setError(null)
     try {
-      // Generate a random secret (in a real app, use a proper TOTP library)
-      const randomSecret = Array.from(crypto.getRandomValues(new Uint8Array(20)))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('')
+      // Use Supabase's built-in MFA enrollment
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError) throw userError
+
+      const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: 'totp'
+      })
       
-      setSecret(randomSecret)
-      
-      // Generate QR code data URL
-      const otpAuthUrl = `otpauth://totp/AgentLogin:${userInfo.email}?secret=${randomSecret}&issuer=AgentLogin`
-      setQrCode(otpAuthUrl)
+      if (error) throw error
+
+      setSecret(data.secret) // Store the secret for verification
+      // Ensure the QR code data is a string
+      const qrCodeData = Buffer.from(data.qr_code, 'utf-8').toString()
+      setQrCode(qrCodeData)
       setShowQR(true)
+
+      // Store the secret in the database
+      const { error: dbError } = await supabase
+        .from('user_info')
+        .update({ mfa_secret: data.secret })
+        .eq('email', user.email)
+
+      if (dbError) throw dbError
     } catch (error) {
       setError('Error generating 2FA secret')
       console.error('2FA setup error:', error)
@@ -50,14 +62,13 @@ const Settings = () => {
     setLoading(true)
     setError(null)
     try {
-      // In a real app, verify the code against the secret using a TOTP library
-      // For demo purposes, we'll just update the database
-      const { error: updateError } = await supabase
-        .from('user_info')
-        .update({ mfa: true })
-        .eq('email', userInfo.email)
+      // Verify the TOTP code using Supabase
+      const { data, error } = await supabase.auth.mfa.verify({
+        factorId: 'totp',
+        code: verificationCode
+      })
 
-      if (updateError) throw updateError
+      if (error) throw error
 
       // Update local storage
       const updatedUserInfo = { ...userInfo, mfa: true }
@@ -69,7 +80,7 @@ const Settings = () => {
       setVerificationCode('')
       alert('2FA has been enabled successfully!')
     } catch (error) {
-      setError('Error enabling 2FA')
+      setError(error.message || 'Error enabling 2FA')
       console.error('2FA verification error:', error)
     } finally {
       setLoading(false)
@@ -80,12 +91,12 @@ const Settings = () => {
     setLoading(true)
     setError(null)
     try {
-      const { error: updateError } = await supabase
-        .from('user_info')
-        .update({ mfa: false })
-        .eq('email', userInfo.email)
+      // Use Supabase's MFA unenroll
+      const { error } = await supabase.auth.mfa.unenroll({
+        factorId: 'totp'
+      })
 
-      if (updateError) throw updateError
+      if (error) throw error
 
       // Update local storage
       const updatedUserInfo = { ...userInfo, mfa: false }
@@ -146,39 +157,36 @@ const Settings = () => {
           )}
         </div>
 
-        {showQR && (
-          <div className="mb-6 p-6 bg-gray-50 rounded-lg">
-            <h3 className="text-lg font-semibold mb-4">Setup Two-Factor Authentication</h3>
-            
-            <div className="mb-4">
-              <p className="text-gray-600 mb-4">
-                1. Scan this QR code with your authenticator app (e.g., Google Authenticator, Authy)
-              </p>
-              <div className="bg-white p-4 inline-block rounded-lg">
-                {qrCode && <QRCode value={qrCode} size={200} />}
-              </div>
+        {showQR && qrCode && (
+          <div className="mt-4 flex flex-col items-center space-y-4">
+            <div className="bg-white p-4 rounded-lg">
+              <QRCode
+                value={qrCode}
+                size={200}
+                level="M"
+              />
             </div>
-
-            <div className="mb-4">
-              <p className="text-gray-600 mb-2">
-                2. Enter the verification code from your authenticator app:
-              </p>
+            <div className="text-sm text-gray-300">
+              <p>1. Scan this QR code with your authenticator app</p>
+              <p>2. Enter the code shown in your app below</p>
+              <p className="mt-2 text-xs text-gray-400">Secret key (if needed): {secret}</p>
+            </div>
+            <div className="w-full max-w-xs">
               <input
                 type="text"
                 value={verificationCode}
                 onChange={(e) => setVerificationCode(e.target.value)}
-                placeholder="Enter 6-digit code"
-                className="block w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter verification code"
+                className="mt-1 block w-full rounded-md border border-blue-500/30 bg-slate-800/50 text-white px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
               />
+              <button
+                onClick={verifyAndEnable2FA}
+                disabled={loading || !verificationCode}
+                className="mt-4 w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Verifying...' : 'Enable 2FA'}
+              </button>
             </div>
-
-            <button
-              onClick={verifyAndEnable2FA}
-              disabled={loading || verificationCode.length !== 6}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Verifying...' : 'Verify and Enable 2FA'}
-            </button>
           </div>
         )}
 

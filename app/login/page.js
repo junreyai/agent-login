@@ -49,7 +49,33 @@ const Login = () => {
         throw new Error('Authentication failed')
       }
 
-      console.log('Authentication successful, getting user info...')
+      // Check if MFA is required
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError) throw userError
+
+      const { data: mfaData, error: mfaError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (mfaError) throw mfaError
+
+      if (mfaData.currentLevel === 'aal1' && mfaData.nextLevel === 'aal2') {
+        // MFA is required
+        if (!showMfaInput) {
+          console.log('MFA required, showing input...')
+          setShowMfaInput(true)
+          setLoading(false)
+          return
+        }
+
+        // Verify MFA code using Supabase's built-in MFA verification
+        const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
+          factorId: 'totp',
+          code: mfaCode,
+          redirectTo: '/dashboard'
+        })
+
+        if (verifyError) {
+          throw new Error('Invalid 2FA code')
+        }
+      }
 
       // Get user info after successful authentication
       const { data: userInfo, error: userInfoError } = await supabase
@@ -68,35 +94,14 @@ const Login = () => {
         throw new Error('User information not found')
       }
 
-      // Check if MFA is enabled
-      if (userInfo.mfa && userInfo.mfa_secret) {
-        if (!showMfaInput) {
-          console.log('MFA required, showing input...')
-          setShowMfaInput(true)
-          setLoading(false)
-          return
-        }
-
-        console.log('Verifying MFA code...')
-        const verified = speakeasy.totp.verify({
-          secret: userInfo.mfa_secret,
-          encoding: 'base32',
-          token: mfaCode,
-          window: 1
-        })
-
-        if (!verified) {
-          throw new Error('Invalid MFA code')
-        }
-      }
-
       // Store user info in localStorage
       const userToStore = {
         id: userInfo.id,
         email: userInfo.email,
         role: userInfo.role,
         firstName: userInfo.first_name,
-        lastName: userInfo.last_name
+        lastName: userInfo.last_name,
+        mfa: true // Set MFA status based on Supabase auth level
       }
       localStorage.setItem('userInfo', JSON.stringify(userToStore))
       console.log('Login successful, redirecting to dashboard...')
@@ -150,7 +155,7 @@ const Login = () => {
                       className="block w-full appearance-none rounded-md border border-blue-500/30 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm bg-slate-800/50 text-white"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      disabled={loading || showMfaInput}
+                      disabled={showMfaInput}
                     />
                   </div>
                 </div>
@@ -168,27 +173,29 @@ const Login = () => {
                       className="block w-full appearance-none rounded-md border border-blue-500/30 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm bg-slate-800/50 text-white"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      disabled={loading || showMfaInput}
+                      disabled={showMfaInput}
                     />
                   </div>
                 </div>
 
                 {showMfaInput && (
-                  <div className="rounded-md shadow-sm">
-                    <label htmlFor="mfa" className="block text-sm font-medium text-blue-200 mb-2">
-                      Enter MFA Code
+                  <div>
+                    <label htmlFor="mfaCode" className="block text-sm font-medium text-blue-200">
+                      2FA Code
                     </label>
-                    <input
-                      id="mfa"
-                      name="mfa"
-                      type="text"
-                      required
-                      className="block w-full appearance-none rounded-md border border-blue-500/30 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm bg-slate-800/50 text-white"
-                      placeholder="Enter 6-digit code"
-                      value={mfaCode}
-                      onChange={(e) => setMfaCode(e.target.value)}
-                      disabled={loading}
-                    />
+                    <div className="mt-1">
+                      <input
+                        id="mfaCode"
+                        name="mfaCode"
+                        type="text"
+                        required
+                        className="block w-full appearance-none rounded-md border border-blue-500/30 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm bg-slate-800/50 text-white"
+                        value={mfaCode}
+                        onChange={(e) => setMfaCode(e.target.value)}
+                        placeholder="Enter your 2FA code"
+                        autoComplete="off"
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -196,17 +203,9 @@ const Login = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
-                      loading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
-                    } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+                    className="flex w-full justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? (
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                    ) : null}
-                    {showMfaInput ? 'Verify MFA Code' : 'Sign in'}
+                    {loading ? 'Loading...' : (showMfaInput ? 'Verify 2FA Code' : 'Sign in')}
                   </button>
                 </div>
               </form>
