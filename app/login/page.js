@@ -111,111 +111,110 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200 bg-opacity-90 backdrop-blur-sm p-4">
-      <div className="max-w-md w-full space-y-8 bg-white/90 backdrop-filter backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <h2 className="text-center text-3xl font-bold tracking-tight text-gray-800 mb-2">
-            Welcome Back
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Sign in to your account
-          </p>
-        </div>
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="py-8 px-4 sm:rounded-lg sm:px-10">
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email address
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm bg-gray-50 text-gray-900"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={loading || showMfaInput}
-                  />
-                </div>
-              </div>
+    <main className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-blue-800">
+      {/* Decorative elements */}
+      <div className="absolute top-0 left-0 w-full h-full">
+        <div className="absolute top-20 left-20 w-32 h-32 bg-blue-500/20 rounded-full blur-xl animate-[pulse_3s_ease-in-out_infinite]"></div>
+        <div className="absolute bottom-20 right-20 w-40 h-40 bg-indigo-500/20 rounded-full blur-xl animate-[pulse_3s_ease-in-out_infinite_0.7s]"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl animate-[pulse_3s_ease-in-out_infinite_1s]"></div>
+      </div>
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    required
-                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm bg-gray-50 text-gray-900"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={loading || showMfaInput}
-                  />
-                </div>
-              </div>
-
-              {showMfaInput && (
-                <div className="rounded-md shadow-sm">
-                  <label htmlFor="mfa" className="block text-sm font-medium text-gray-700 mb-2">
-                    Enter MFA Code
+      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-12">
+        <div className="w-full max-w-md space-y-8 backdrop-blur-md bg-slate-900/50 p-8 rounded-2xl shadow-2xl border border-blue-500/20">
+          {error && (
+            <div className="mb-4 text-center text-red-500 bg-red-100/10 rounded-lg p-3">
+              {error}
+            </div>
+          )}
+          <div className="sm:mx-auto sm:w-full sm:max-w-md">
+            <h2 className="text-center text-3xl font-bold tracking-tight text-white mb-2">
+              Welcome Back
+            </h2>
+            <p className="mt-2 text-center text-sm text-blue-200">
+              Sign in to your account
+            </p>
+          </div>
+          <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+            <div className="py-8 px-4 sm:rounded-lg sm:px-10">
+              <form className="space-y-6" onSubmit={handleSubmit}>
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-blue-200">
+                    Email address
                   </label>
-                  <input
-                    id="mfa"
-                    name="mfa"
-                    type="text"
-                    required
-                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm bg-gray-50 text-gray-900"
-                    placeholder="Enter 6-digit code"
-                    value={mfaCode}
-                    onChange={(e) => setMfaCode(e.target.value)}
-                    disabled={loading}
-                  />
-                </div>
-              )}
-
-              {error && (
-                <div className="rounded-md bg-red-50 p-4">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-red-800">{error}</p>
-                    </div>
+                  <div className="mt-1">
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      required
+                      className="block w-full appearance-none rounded-md border border-blue-500/30 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm bg-slate-800/50 text-white"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={loading || showMfaInput}
+                    />
                   </div>
                 </div>
-              )}
 
-              <div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
-                    loading ? 'bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700'
-                  } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
-                >
-                  {loading ? (
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  ) : null}
-                  {showMfaInput ? 'Verify MFA Code' : 'Sign in'}
-                </button>
-              </div>
-            </form>
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-blue-200">
+                    Password
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="password"
+                      name="password"
+                      type="password"
+                      required
+                      className="block w-full appearance-none rounded-md border border-blue-500/30 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm bg-slate-800/50 text-white"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={loading || showMfaInput}
+                    />
+                  </div>
+                </div>
+
+                {showMfaInput && (
+                  <div className="rounded-md shadow-sm">
+                    <label htmlFor="mfa" className="block text-sm font-medium text-blue-200 mb-2">
+                      Enter MFA Code
+                    </label>
+                    <input
+                      id="mfa"
+                      name="mfa"
+                      type="text"
+                      required
+                      className="block w-full appearance-none rounded-md border border-blue-500/30 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm bg-slate-800/50 text-white"
+                      placeholder="Enter 6-digit code"
+                      value={mfaCode}
+                      onChange={(e) => setMfaCode(e.target.value)}
+                      disabled={loading}
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
+                      loading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+                    } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+                  >
+                    {loading ? (
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : null}
+                    {showMfaInput ? 'Verify MFA Code' : 'Sign in'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   )
 }
 
