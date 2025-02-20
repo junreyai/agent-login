@@ -23,6 +23,10 @@ export default function DashboardPage() {
     confirmPassword: '',
     role: 'user'
   })
+  const [showEditUserModal, setShowEditUserModal] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [userToDelete, setUserToDelete] = useState(null)
   const router = useRouter()
   const supabase = createClientComponentClient()
 
@@ -233,12 +237,67 @@ export default function DashboardPage() {
     }
   }
 
-  const handleEditUser = (id) => {
-    console.log('Edit user:', id)
+  const handleEditUser = async (e) => {
+    e.preventDefault()
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: editingUser.first_name,
+          lastName: editingUser.last_name,
+          role: editingUser.role
+        })
+      })
+
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update user')
+      }
+
+      setShowEditUserModal(false)
+      setEditingUser(null)
+      await loadUser()
+    } catch (error) {
+      console.error('Error updating user:', error)
+      setError(error.message)
+    }
   }
 
-  const handleDeleteUser = (id) => {
-    console.log('Delete user:', id)
+  const handleDeleteUser = async () => {
+    try {
+      const response = await fetch(`/api/users/${userToDelete.id}`, {
+        method: 'DELETE',
+      })
+
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete user')
+      }
+
+      setShowDeleteModal(false)
+      setUserToDelete(null)
+      await loadUser()
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      setError(error.message)
+    }
+  }
+
+  const openEditModal = (user) => {
+    setEditingUser(user)
+    setShowEditUserModal(true)
+  }
+
+  const openDeleteModal = (user) => {
+    setUserToDelete(user)
+    setShowDeleteModal(true)
   }
 
   if (loading) {
@@ -399,6 +458,114 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* Edit User Modal */}
+          {showEditUserModal && editingUser && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+              <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div className="mt-3">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">Edit User</h3>
+                  <form onSubmit={handleEditUser} className="mt-4">
+                    <div className="mb-4">
+                      <label className="block text-gray-700 text-sm font-bold mb-2">
+                        First Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editingUser.first_name}
+                        onChange={(e) => setEditingUser({...editingUser, first_name: e.target.value})}
+                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                      />
+                    </div>
+                    <div className="mb-4">
+                      <label className="block text-gray-700 text-sm font-bold mb-2">
+                        Last Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editingUser.last_name}
+                        onChange={(e) => setEditingUser({...editingUser, last_name: e.target.value})}
+                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                      />
+                    </div>
+                    <div className="mb-4">
+                      <label className="block text-gray-700 text-sm font-bold mb-2">
+                        Role
+                      </label>
+                      <select
+                        value={editingUser.role}
+                        onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
+                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                      >
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    {error && (
+                      <p className="text-red-500 text-xs italic mb-4">{error}</p>
+                    )}
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowEditUserModal(false)
+                          setEditingUser(null)
+                          setError(null)
+                        }}
+                        className="mr-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        Save Changes
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Delete Confirmation Modal */}
+          {showDeleteModal && userToDelete && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+              <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div className="mt-3">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">Delete User</h3>
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500">
+                      Are you sure you want to delete {userToDelete.first_name} {userToDelete.last_name}? This action cannot be undone.
+                    </p>
+                  </div>
+                  {error && (
+                    <p className="text-red-500 text-xs italic mt-4">{error}</p>
+                  )}
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDeleteModal(false)
+                        setUserToDelete(null)
+                        setError(null)
+                      }}
+                      className="mr-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDeleteUser}
+                      className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* User List Table */}
           <div className="mt-8">
             <h2 className="text-lg font-medium text-gray-900 mb-4">User List</h2>
@@ -421,7 +588,7 @@ export default function DashboardPage() {
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       MFA Status
                     </th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -438,25 +605,29 @@ export default function DashboardPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {user.email}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
+                        }`}>
                           {user.role}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.mfa_enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          user.mfa_enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
                           {user.mfa_enabled ? 'Enabled' : 'Disabled'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
-                          onClick={() => handleEditUser(user.id)}
+                          onClick={() => openEditModal(user)}
                           className="text-indigo-600 hover:text-indigo-900 mr-4"
                         >
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDeleteUser(user.id)}
+                          onClick={() => openDeleteModal(user)}
                           className="text-red-600 hover:text-red-900"
                         >
                           Delete
