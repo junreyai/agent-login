@@ -52,6 +52,18 @@ export default function DashboardPage() {
         .select('*')
       
       if (usersError) throw usersError
+      
+      // Get current user's role from user_info table
+      const { data: currentUserInfo, error: currentUserInfoError } = await supabase
+        .from('user_info')
+        .select('role')
+        .eq('id', currentUser.id)
+        .single()
+      
+      if (currentUserInfoError) throw currentUserInfoError
+      
+      // Set user with role information
+      setUser({ ...currentUser, role: currentUserInfo.role })
       setUsers(usersData || [])
     } catch (error) {
       console.error('Error:', error)
@@ -613,15 +625,17 @@ export default function DashboardPage() {
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">User Management</h2>
-                <button
-                  onClick={() => setShowAddUserModal(true)}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm hover:shadow-md transition-all flex items-center space-x-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  <span>Add User</span>
-                </button>
+                {user?.role === 'admin' && (
+                  <button
+                    onClick={() => setShowAddUserModal(true)}
+                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm hover:shadow-md transition-all flex items-center space-x-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    <span>Add User</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -629,82 +643,70 @@ export default function DashboardPage() {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-900/50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Email
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Role
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       2FA Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    {user?.role === 'admin' && (
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {users.map((user) => (
-                    <tr 
-                      key={user.id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                    >
+                  {users.map((u) => (
+                    <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10">
-                            <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
-                              <span className="text-blue-600 dark:text-blue-400 font-medium text-sm">
-                                {`${user.first_name?.charAt(0) || ''}${user.last_name?.charAt(0) || ''}`}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">
-                              {user.first_name} {user.last_name}
-                            </div>
-                          </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          {u.first_name} {u.last_name}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-700 dark:text-gray-300">{user.email}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{u.email}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                          ${user.role === 'admin' 
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          u.role === 'admin' 
                             ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300'
-                            : 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
-                          }`}
-                        >
-                          {user.role}
+                            : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                        }`}>
+                          {u.role}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                          ${user.mfa_enabled
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          u.mfa_enabled
                             ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
                             : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'
-                          }`}
-                        >
-                          {user.mfa_enabled ? 'Enabled' : 'Disabled'}
+                        }`}>
+                          {u.mfa_enabled ? 'Enabled' : 'Disabled'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-3">
-                        <button
-                          onClick={() => openEditModal(user)}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => openDeleteModal(user)}
-                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-                        >
-                          Delete
-                        </button>
-                      </td>
+                      {user?.role === 'admin' && (
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                          <button
+                            onClick={() => openEditModal(u)}
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => openDeleteModal(u)}
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
