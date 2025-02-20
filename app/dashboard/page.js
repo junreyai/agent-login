@@ -27,6 +27,7 @@ export default function DashboardPage() {
   const [editingUser, setEditingUser] = useState(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [userToDelete, setUserToDelete] = useState(null)
+  const [showDisableMFAModal, setShowDisableMFAModal] = useState(false)
   const router = useRouter()
   const supabase = createClientComponentClient()
 
@@ -113,10 +114,6 @@ export default function DashboardPage() {
   }
 
   const handleDisableMFA = async () => {
-    if (!confirm('Are you sure you want to disable two-factor authentication? This will make your account less secure.')) {
-      return
-    }
-
     try {
       const verifiedFactor = user?.factors?.find(factor => 
         factor.factor_type === 'totp' && factor.status === 'verified'
@@ -131,7 +128,7 @@ export default function DashboardPage() {
 
       // MFA status will be automatically synced by database trigger
       await loadUser()
-      alert('Two-factor authentication has been disabled successfully!')
+      setShowDisableMFAModal(false)
     } catch (error) {
       console.error('Error disabling MFA:', error)
       setError(error.message)
@@ -349,7 +346,7 @@ export default function DashboardPage() {
                 </button>
               ) : (
                 <button
-                  onClick={handleDisableMFA}
+                  onClick={() => setShowDisableMFAModal(true)}
                   className="inline-flex items-center px-4 py-2 text-sm font-medium text-yellow-700 bg-yellow-100 hover:bg-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300 dark:hover:bg-yellow-800/50 rounded-lg transition-colors"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -614,6 +611,54 @@ export default function DashboardPage() {
                     className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm hover:shadow-md transition-all"
                   >
                     Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Disable 2FA Confirmation Modal */}
+          {showDisableMFAModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center transition-opacity">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md transform transition-all scale-in-center shadow-lg">
+                <div className="text-center">
+                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50">
+                    <svg className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
+                    Disable Two-Factor Authentication
+                  </h3>
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Are you sure you want to disable two-factor authentication? This will make your account less secure.
+                  </p>
+                </div>
+
+                {error && (
+                  <div className="mt-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/50 text-red-600 dark:text-red-200 text-sm">
+                    <div className="flex items-center">
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {error}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-6 flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowDisableMFAModal(false)}
+                    className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDisableMFA}
+                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm hover:shadow-md transition-all"
+                  >
+                    Disable 2FA
                   </button>
                 </div>
               </div>
