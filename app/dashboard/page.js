@@ -319,12 +319,14 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
             <div className="flex gap-4">
-              <button
-                onClick={() => setShowAddUserModal(true)}
-                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-              >
-                Add User
-              </button>
+              {user?.user_metadata?.role === 'admin' && (
+                <button
+                  onClick={() => setShowAddUserModal(true)}
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  Add User
+                </button>
+              )}
               <button
                 onClick={handleSignOut}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
@@ -588,9 +590,11 @@ export default function DashboardPage() {
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       MFA Status
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    {user?.user_metadata?.role === 'admin' && (
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -619,20 +623,22 @@ export default function DashboardPage() {
                           {user.mfa_enabled ? 'Enabled' : 'Disabled'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => openEditModal(user)}
-                          className="text-indigo-600 hover:text-indigo-900 mr-4"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => openDeleteModal(user)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Delete
-                        </button>
-                      </td>
+                      {user?.user_metadata?.role === 'admin' && (
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button
+                            onClick={() => openEditModal(user)}
+                            className="text-indigo-600 hover:text-indigo-900 mr-4"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => openDeleteModal(user)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
