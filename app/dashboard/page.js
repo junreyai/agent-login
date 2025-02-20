@@ -13,49 +13,30 @@ export default function DashboardPage() {
   const [qrCodeUrl, setQrCodeUrl] = useState(null)
   const [verificationCode, setVerificationCode] = useState('')
   const [factorId, setFactorId] = useState(null)
-  const [mfaEnabled, setMfaEnabled] = useState(false)
   const router = useRouter()
   const supabase = createClientComponentClient()
 
-  const checkMFAStatus = async () => {
+  const loadUser = async () => {
     try {
-      const { data: { factors }, error: mfaError } = await supabase.auth.mfa.listFactors()
-      if (mfaError) throw mfaError
-      
-      const hasMFA = factors?.totp?.some(factor => factor.status === 'verified')
-      setMfaEnabled(hasMFA)
-
-      // Clean up any unverified factors
-      const unverifiedFactors = factors?.totp?.filter(factor => factor.status === 'unverified') || []
-      for (const factor of unverifiedFactors) {
-        await supabase.auth.mfa.unenroll({ factorId: factor.id })
+      const { data: { user: currentUser }, error } = await supabase.auth.getUser()
+      if (error) throw error
+      if (!currentUser) {
+        router.push('/login')
+        return
       }
+      console.log('User data:', currentUser)
+      setUser(currentUser)
     } catch (error) {
-      console.error('Error checking MFA status:', error)
+      console.error('Error:', error)
+      router.push('/login')
+    } finally {
+      setLoading(false)
     }
   }
 
   useEffect(() => {
-    const getUser = async () => {
-      try {
-        const { data: { user: currentUser }, error } = await supabase.auth.getUser()
-        if (error) throw error
-        if (!currentUser) {
-          router.push('/login')
-          return
-        }
-        setUser(currentUser)
-        await checkMFAStatus()
-      } catch (error) {
-        console.error('Error getting user:', error)
-        router.push('/login')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    getUser()
-  }, [router])
+    loadUser()
+  }, [])
 
   const handleSignOut = async () => {
     try {
@@ -72,7 +53,10 @@ export default function DashboardPage() {
       setError(null)
       
       // First clean up any existing unverified factors
-      await checkMFAStatus()
+      const unverifiedFactors = user?.factors?.filter(factor => factor.status === 'unverified' && factor.factor_type === 'totp') || []
+      for (const factor of unverifiedFactors) {
+        await supabase.auth.mfa.unenroll({ factorId: factor.id })
+      }
 
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp'
@@ -89,6 +73,31 @@ export default function DashboardPage() {
     }
   }
 
+  const handleDisableMFA = async () => {
+    if (!confirm('Are you sure you want to disable two-factor authentication? This will make your account less secure.')) {
+      return
+    }
+
+    try {
+      const verifiedFactor = user?.factors?.find(factor => 
+        factor.factor_type === 'totp' && factor.status === 'verified'
+      )
+      if (!verifiedFactor) {
+        throw new Error('No verified MFA factor found')
+      }
+
+      setError(null)
+      const { error } = await supabase.auth.mfa.unenroll({ factorId: verifiedFactor.id })
+      if (error) throw error
+
+      await loadUser()
+      alert('Two-factor authentication has been disabled successfully!')
+    } catch (error) {
+      console.error('Error disabling MFA:', error)
+      setError(error.message)
+    }
+  }
+
   const handleCancelMFA = async () => {
     try {
       if (factorId) {
@@ -99,7 +108,7 @@ export default function DashboardPage() {
       setVerificationCode('')
       setError(null)
       setFactorId(null)
-      await checkMFAStatus()
+      await loadUser()
     } catch (error) {
       console.error('Error canceling MFA setup:', error)
       setError(error.message)
@@ -127,11 +136,12 @@ export default function DashboardPage() {
       })
       if (verifyError) throw verifyError
 
-      setMfaEnabled(true)
       setShowMFASetup(false)
       setQrCodeUrl(null)
       setVerificationCode('')
       setFactorId(null)
+      await loadUser()
+      alert('Two-factor authentication has been enabled successfully!')
     } catch (error) {
       console.error('Error verifying MFA:', error)
       setError(error.message)
@@ -145,6 +155,10 @@ export default function DashboardPage() {
       </div>
     )
   }
+
+  const hasVerifiedMFA = user?.factors?.some(factor => 
+    factor.factor_type === 'totp' && factor.status === 'verified'
+  )
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -169,27 +183,29 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-lg font-medium text-gray-900">Security Settings</h2>
               <div className="mt-4">
-                {!mfaEnabled && !showMFASetup && (
+                {!showMFASetup && (
                   <>
-                    <button
-                      onClick={handleSetupMFA}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      Set Up Two-Factor Authentication
-                    </button>
-                    <p className="mt-2 text-sm text-gray-500">
-                      Enhance your account security by enabling two-factor authentication.
-                    </p>
+                    {hasVerifiedMFA ? (
+                      <button
+                        onClick={handleDisableMFA}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                      >
+                        Disable Two-Factor Authentication
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={handleSetupMFA}
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                          Set Up Two-Factor Authentication
+                        </button>
+                        <p className="mt-2 text-sm text-gray-500">
+                          Enhance your account security by enabling two-factor authentication.
+                        </p>
+                      </>
+                    )}
                   </>
-                )}
-
-                {mfaEnabled && (
-                  <div className="text-sm text-green-600 flex items-center">
-                    <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    Two-factor authentication is enabled
-                  </div>
                 )}
 
                 {showMFASetup && (
