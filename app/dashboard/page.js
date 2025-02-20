@@ -319,7 +319,7 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
             <div className="flex gap-4">
-              {user?.user_metadata?.role === 'admin' && (
+              {users.find(u => u.id === user?.id)?.role === 'admin' && (
                 <button
                   onClick={() => setShowAddUserModal(true)}
                   className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -590,7 +590,7 @@ export default function DashboardPage() {
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       MFA Status
                     </th>
-                    {user?.user_metadata?.role === 'admin' && (
+                    {users.find(u => u.id === user?.id)?.role === 'admin' && (
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
@@ -598,41 +598,41 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {users.map((user) => (
-                    <tr key={user.id}>
+                  {users.map((listUser) => (
+                    <tr key={listUser.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {user.first_name}
+                        {listUser.first_name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {user.last_name}
+                        {listUser.last_name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {user.email}
+                        {listUser.email}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
+                          listUser.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
                         }`}>
-                          {user.role}
+                          {listUser.role}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          user.mfa_enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          listUser.mfa_enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                         }`}>
-                          {user.mfa_enabled ? 'Enabled' : 'Disabled'}
+                          {listUser.mfa_enabled ? 'Enabled' : 'Disabled'}
                         </span>
                       </td>
-                      {user?.user_metadata?.role === 'admin' && (
+                      {users.find(u => u.id === user?.id)?.role === 'admin' && (
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button
-                            onClick={() => openEditModal(user)}
+                            onClick={() => openEditModal(listUser)}
                             className="text-indigo-600 hover:text-indigo-900 mr-4"
                           >
                             Edit
                           </button>
                           <button
-                            onClick={() => openDeleteModal(user)}
+                            onClick={() => openDeleteModal(listUser)}
                             className="text-red-600 hover:text-red-900"
                           >
                             Delete
