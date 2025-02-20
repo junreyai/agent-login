@@ -65,6 +65,28 @@ export default function LoginPage() {
       const { data: { user } } = await supabase.auth.getUser()
       console.log('User data:', user)
 
+      // Create empty user_info record if it doesn't exist
+      const { data: existingUserInfo, error: userInfoError } = await supabase
+        .from('user_info')
+        .select('id')
+        .eq('id', user.id)
+        .single()
+
+      if (!existingUserInfo) {
+        const { error: insertError } = await supabase
+          .from('user_info')
+          .insert([
+            {
+              id: user.id,
+              first_name: '',
+              last_name: '',
+              email: user.email,
+              mfa_enabled: false,
+              role: ''            }
+          ])
+        if (insertError) throw insertError
+      }
+
       // Check if user has verified MFA factors
       const verifiedMFAFactor = user?.factors?.find(factor => 
         factor.factor_type === 'totp' && 
@@ -72,9 +94,7 @@ export default function LoginPage() {
       )
 
       if (verifiedMFAFactor) {
-        // Sign out to clear the session since MFA is required
-        await supabase.auth.signOut()
-        
+        // Don't sign out, just show the MFA prompt
         console.log('MFA is required, showing prompt')
         setFactorId(verifiedMFAFactor.id)
         setShowMFAPrompt(true)
@@ -102,13 +122,6 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      // First sign in again with email/password
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-      if (signInError) throw signInError
-
       // Create MFA challenge
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
         factorId
@@ -127,12 +140,47 @@ export default function LoginPage() {
 
       console.log('MFA Verification successful:', data)
 
-      // If verification successful, redirect to dashboard
+      // Check session after verification
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) throw sessionError
+
+      if (!session) {
+        throw new Error('Session not found after MFA verification')
+      }
+
+      // Get user and ensure user_info record exists
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: existingUserInfo, error: userInfoError } = await supabase
+        .from('user_info')
+        .select('id')
+        .eq('id', user.id)
+        .single()
+
+      if (!existingUserInfo) {
+        const { error: insertError } = await supabase
+          .from('user_info')
+          .insert([
+            {
+              id: user.id,
+              first_name: '',
+              last_name: '',
+              email: user.email,
+              mfa_enabled: false,
+              role: 'user'
+            }
+          ])
+        if (insertError) throw insertError
+      }
+
+      // If verification successful and session exists, redirect to dashboard
       router.push('/dashboard')
     } catch (error) {
       console.error('MFA verification error:', error)
       setError(error.message)
       setVerificationCode('')
+      
+      // If there's an error, try to sign out to clean up any partial session
+      await supabase.auth.signOut()
     } finally {
       setLoading(false)
     }
