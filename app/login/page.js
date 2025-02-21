@@ -58,9 +58,20 @@ export default function LoginPage() {
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: {
+          persistSession: true // Ensure session persistence
+        }
       })
       
       if (signInError) throw signInError
+
+      // Check if we have a valid session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) throw sessionError
+      
+      if (!session) {
+        throw new Error('No session established after login')
+      }
 
       const { data: { user } } = await supabase.auth.getUser()
       console.log('User data:', user)
@@ -82,7 +93,8 @@ export default function LoginPage() {
               last_name: '',
               email: user.email,
               mfa_enabled: false,
-              role: ''            }
+              role: 'user'
+            }
           ])
         if (insertError) throw insertError
       }

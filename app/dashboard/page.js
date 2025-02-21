@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useRouter } from 'next/navigation'
 import QRCode from 'qrcode'
+import SuccessModal from '../components/SuccessModal'
 
 export default function DashboardPage() {
   const [user, setUser] = useState(null)
@@ -28,7 +29,11 @@ export default function DashboardPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [userToDelete, setUserToDelete] = useState(null)
   const [showDisableMFAModal, setShowDisableMFAModal] = useState(false)
-  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [successModal, setSuccessModal] = useState({
+    isOpen: false,
+    title: '',
+    message: ''
+  })
   const router = useRouter()
   const supabase = createClientComponentClient()
 
@@ -133,12 +138,20 @@ export default function DashboardPage() {
       }
 
       setError(null)
+
       const { error } = await supabase.auth.mfa.unenroll({ factorId: verifiedFactor.id })
       if (error) throw error
 
+      setShowDisableMFAModal(false)
       // MFA status will be automatically synced by database trigger
       await loadUser()
-      setShowDisableMFAModal(false)
+
+      // Show success modal after successful disable
+      setSuccessModal({
+        isOpen: true,
+        title: '2FA Successfully Disabled',
+        message: 'Two-factor authentication has been disabled for your account. You will no longer need to enter a verification code when logging in.'
+      })
     } catch (error) {
       console.error('Error disabling MFA:', error)
       setError(error.message)
@@ -183,13 +196,18 @@ export default function DashboardPage() {
       })
       if (verifyError) throw verifyError
 
-      // MFA status will be automatically synced by database trigger
+      // Show success modal using the new component
+      setSuccessModal({
+        isOpen: true,
+        title: '2FA Successfully Enabled',
+        message: 'Two-factor authentication has been successfully enabled for your account. You will need to enter a verification code each time you log in.'
+      })
+      
       setShowMFASetup(false)
-      setQrCodeUrl(null)
       setVerificationCode('')
-      setFactorId(null)
-      await loadUser()
-      setShowSuccessModal(true) // Show success modal instead of alert
+      
+      // Refresh user data to update MFA status
+      loadUser()
     } catch (error) {
       console.error('Error verifying MFA:', error)
       setError(error.message)
@@ -249,7 +267,11 @@ export default function DashboardPage() {
       setShowAddUserModal(false)
       
       // Show success modal
-      setShowSuccessModal(true)
+      setSuccessModal({
+        isOpen: true,
+        title: 'Success!',
+        message: 'User has been successfully added.'
+      })
 
       // Reload user list
       await loadUser()
@@ -262,29 +284,31 @@ export default function DashboardPage() {
   const handleEditUser = async (e) => {
     e.preventDefault()
     setError(null)
-
+    
     try {
-      const response = await fetch(`/api/users/${editingUser.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          firstName: editingUser.first_name,
-          lastName: editingUser.last_name,
+      const { error: updateError } = await supabase
+        .from('user_info')
+        .update({
+          first_name: editingUser.first_name,
+          last_name: editingUser.last_name,
           role: editingUser.role
         })
+        .eq('id', editingUser.id)
+
+      if (updateError) throw updateError
+
+      // Show success modal
+      setSuccessModal({
+        isOpen: true,
+        title: 'User Updated Successfully',
+        message: 'The user information has been successfully updated.'
       })
-
-      const data = await response.json()
       
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update user')
-      }
-
+      // Close edit modal
       setShowEditUserModal(false)
-      setEditingUser(null)
-      await loadUser()
+      
+      // Refresh user list
+      loadUser()
     } catch (error) {
       console.error('Error updating user:', error)
       setError(error.message)
@@ -303,6 +327,11 @@ export default function DashboardPage() {
         throw new Error(data.error || 'Failed to delete user')
       }
 
+      setSuccessModal({
+        isOpen: true,
+        title: 'User Deleted',
+        message: 'The user has been successfully deleted.'
+      })
       setShowDeleteModal(false)
       setUserToDelete(null)
       await loadUser()
@@ -626,7 +655,7 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={handleDeleteUser}
-                    className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-800/50 rounded-lg transition-colors"
                   >
                     Delete User
                   </button>
@@ -640,15 +669,15 @@ export default function DashboardPage() {
             <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center transition-opacity">
               <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md transform transition-all scale-in-center shadow-lg">
                 <div className="text-center">
-                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50 mb-4">
-                    <svg className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/50 mb-4">
+                    <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                     Disable Two-Factor Authentication
                   </h3>
-                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
                     Are you sure you want to disable two-factor authentication? This will make your account less secure.
                   </p>
                 </div>
@@ -674,7 +703,7 @@ export default function DashboardPage() {
                   </button>
                   <button
                     onClick={handleDisableMFA}
-                    className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-800/50 rounded-lg transition-colors"
                   >
                     Disable 2FA
                   </button>
@@ -754,126 +783,107 @@ export default function DashboardPage() {
           )}
 
           {/* Success Modal */}
-          {showSuccessModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center backdrop-blur-sm transition-opacity">
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md transform transition-all scale-in-center shadow-xl">
-                <div className="text-center">
-                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50 mb-4">
-                    <svg className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                    Success!
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    User has been successfully added.
-                  </p>
-                </div>
-
-                <div className="mt-6 flex justify-center">
-                  <button
-                    onClick={() => setShowSuccessModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          <SuccessModal
+            isOpen={successModal.isOpen}
+            onClose={() => setSuccessModal({ ...successModal, isOpen: false })}
+            title={successModal.title}
+            message={successModal.message}
+          />
 
           {/* User List Section */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">User Management</h2>
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-white">User List</h2>
                 {user?.role === 'admin' && (
                   <button
                     onClick={() => setShowAddUserModal(true)}
-                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors flex items-center space-x-2"
+                    className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors inline-flex items-center"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
                     </svg>
-                    <span>Add User</span>
+                    Add User
                   </button>
                 )}
               </div>
             </div>
-
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-900/50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Role
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      2FA Status
-                    </th>
-                    {user?.role === 'admin' && (
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Actions
+            <div className="w-full">
+              <div className="overflow-x-auto">
+                <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700/50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Name
                       </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {u.first_name} {u.last_name}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500 dark:text-gray-400">{u.email}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          u.role === 'admin' 
-                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300'
-                            : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-                        }`}>
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          u.mfa_enabled
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'
-                        }`}>
-                          {u.mfa_enabled ? 'Enabled' : 'Disabled'}
-                        </span>
-                      </td>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Role
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        2FA Status
+                      </th>
                       {user?.role === 'admin' && (
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                          <button
-                            onClick={() => openEditModal(u)}
-                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => openDeleteModal(u)}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                          >
-                            Delete
-                          </button>
-                        </td>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Actions
+                        </th>
                       )}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 rounded-b-lg">
+                    {users.map((u, index) => (
+                      <tr key={u.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
+                        index === users.length - 1 ? 'rounded-b-lg' : ''
+                      }`}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900 dark:text-gray-100">
+                            {u.first_name ? `${u.first_name} ${u.last_name}` : 'Not set'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{u.email}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            u.role === 'admin' 
+                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300'
+                              : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                          }`}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            u.mfa_enabled
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'
+                          }`}>
+                            {u.mfa_enabled ? 'Enabled' : 'Disabled'}
+                          </span>
+                        </td>
+                        {user?.role === 'admin' && (
+                          <td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium space-x-3">
+                            <button
+                              onClick={() => openEditModal(u)}
+                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => openDeleteModal(u)}
+                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
