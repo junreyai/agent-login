@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [userToDelete, setUserToDelete] = useState(null)
   const [showDisableMFAModal, setShowDisableMFAModal] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
   const router = useRouter()
   const supabase = createClientComponentClient()
 
@@ -95,11 +96,20 @@ export default function DashboardPage() {
       // First clean up any existing unverified factors
       const unverifiedFactors = user?.factors?.filter(factor => factor.status === 'unverified' && factor.factor_type === 'totp') || []
       for (const factor of unverifiedFactors) {
-        await supabase.auth.mfa.unenroll({ factorId: factor.id })
+        try {
+          await supabase.auth.mfa.unenroll({ factorId: factor.id })
+        } catch (unenrollError) {
+          // Ignore 404 errors when trying to unenroll non-existent factors
+          if (!unenrollError.message?.includes('404')) {
+            throw unenrollError
+          }
+        }
       }
 
       const { data, error } = await supabase.auth.mfa.enroll({
-        factorType: 'totp'
+        factorType: 'totp',
+        issuer: 'Next Login',
+        friendlyName: `TOTP-${Date.now()}`
       })
       if (error) throw error
 
@@ -179,7 +189,7 @@ export default function DashboardPage() {
       setVerificationCode('')
       setFactorId(null)
       await loadUser()
-      alert('Two-factor authentication has been enabled successfully!')
+      setShowSuccessModal(true) // Show success modal instead of alert
     } catch (error) {
       console.error('Error verifying MFA:', error)
       setError(error.message)
@@ -462,7 +472,7 @@ export default function DashboardPage() {
                     </div>
                   )}
 
-                  <div className="flex justify-end space-x-3 mt-6">
+                  <div className="flex justify-center space-x-3 mt-6">
                     <button
                       type="button"
                       onClick={() => setShowAddUserModal(false)}
@@ -551,7 +561,7 @@ export default function DashboardPage() {
                     </div>
                   )}
 
-                  <div className="flex justify-end space-x-3 mt-6">
+                  <div className="flex justify-center space-x-3 mt-6">
                     <button
                       type="button"
                       onClick={() => setShowEditUserModal(false)}
@@ -598,7 +608,7 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                <div className="mt-6 flex space-x-3">
+                <div className="mt-6 flex justify-center space-x-3">
                   <button
                     type="button"
                     onClick={() => {
@@ -606,14 +616,14 @@ export default function DashboardPage() {
                       setUserToDelete(null)
                       setError(null)
                     }}
-                    className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={handleDeleteUser}
-                    className="flex-1 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors"
                   >
                     Delete User
                   </button>
@@ -627,12 +637,12 @@ export default function DashboardPage() {
             <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center transition-opacity">
               <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md transform transition-all scale-in-center shadow-lg">
                 <div className="text-center">
-                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50">
+                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50 mb-4">
                     <svg className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                   </div>
-                  <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                     Disable Two-Factor Authentication
                   </h3>
                   <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
@@ -651,19 +661,119 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                <div className="mt-6 flex space-x-3">
+                <div className="mt-6 flex justify-center space-x-3">
                   <button
                     type="button"
                     onClick={() => setShowDisableMFAModal(false)}
-                    className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleDisableMFA}
-                    className="flex-1 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors"
                   >
                     Disable 2FA
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MFA Setup Modal */}
+          {showMFASetup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center backdrop-blur-sm transition-opacity">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md transform transition-all scale-in-center">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Setup Two-Factor Authentication</h2>
+                  <button
+                    onClick={handleCancelMFA}
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      Scan this QR code with your authenticator app (like Google Authenticator or Authy)
+                    </p>
+                    {qrCodeUrl && (
+                      <div className="flex justify-center mb-6">
+                        <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48" />
+                      </div>
+                    )}
+                  </div>
+
+                  <form onSubmit={handleVerifyMFA} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Verification Code
+                      </label>
+                      <input
+                        type="text"
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value)}
+                        placeholder="Enter 6-digit code"
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
+                        maxLength={6}
+                      />
+                    </div>
+
+                    {error && (
+                      <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/50 text-red-600 dark:text-red-200 text-sm">
+                        {error}
+                      </div>
+                    )}
+
+                    <div className="flex justify-center space-x-3">
+                      <button
+                        type="button"
+                        onClick={handleCancelMFA}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors"
+                      >
+                        Verify
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Success Modal */}
+          {showSuccessModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center backdrop-blur-sm transition-opacity">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md transform transition-all scale-in-center shadow-xl">
+                <div className="text-center">
+                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50 mb-4">
+                    <svg className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                    Setup Complete!
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Two-factor authentication has been enabled successfully. Your account is now more secure.
+                  </p>
+                </div>
+
+                <div className="mt-6 flex justify-center">
+                  <button
+                    onClick={() => setShowSuccessModal(false)}
+                    className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors"
+                  >
+                    Got it
                   </button>
                 </div>
               </div>
