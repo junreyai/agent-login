@@ -247,6 +247,9 @@ export default function DashboardPage() {
         role: 'user'
       })
       setShowAddUserModal(false)
+      
+      // Show success modal
+      setShowSuccessModal(true)
 
       // Reload user list
       await loadUser()
@@ -761,10 +764,10 @@ export default function DashboardPage() {
                     </svg>
                   </div>
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                    Setup Complete!
+                    Success!
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Two-factor authentication has been enabled successfully. Your account is now more secure.
+                    User has been successfully added.
                   </p>
                 </div>
 
@@ -773,7 +776,7 @@ export default function DashboardPage() {
                     onClick={() => setShowSuccessModal(false)}
                     className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors"
                   >
-                    Got it
+                    Close
                   </button>
                 </div>
               </div>
