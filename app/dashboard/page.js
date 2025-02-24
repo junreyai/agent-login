@@ -1,21 +1,40 @@
 'use client'
 
+// Core imports
 import { useEffect, useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useRouter } from 'next/navigation'
+
+// Third-party imports
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import QRCode from 'qrcode'
+
+// Components
 import SuccessModal from '../components/SuccessModal'
 
 export default function DashboardPage() {
+  // Router and Supabase client initialization
+  const router = useRouter()
+  const supabase = createClientComponentClient()
+
+  // User and authentication states
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
+  // MFA related states
   const [showMFASetup, setShowMFASetup] = useState(false)
   const [qrCodeUrl, setQrCodeUrl] = useState(null)
   const [verificationCode, setVerificationCode] = useState('')
   const [factorId, setFactorId] = useState(null)
+  const [showDisableMFAModal, setShowDisableMFAModal] = useState(false)
+
+  // User management states
   const [users, setUsers] = useState([])
   const [showAddUserModal, setShowAddUserModal] = useState(false)
+  const [showEditUserModal, setShowEditUserModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [userToDelete, setUserToDelete] = useState(null)
+  const [editingUser, setEditingUser] = useState(null)
   const [newUser, setNewUser] = useState({
     firstName: '',
     lastName: '',
@@ -24,19 +43,15 @@ export default function DashboardPage() {
     confirmPassword: '',
     role: ''
   })
-  const [showEditUserModal, setShowEditUserModal] = useState(false)
-  const [editingUser, setEditingUser] = useState(null)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [userToDelete, setUserToDelete] = useState(null)
-  const [showDisableMFAModal, setShowDisableMFAModal] = useState(false)
+
+  // Modal states
   const [successModal, setSuccessModal] = useState({
     isOpen: false,
     title: '',
     message: ''
   })
-  const router = useRouter()
-  const supabase = createClientComponentClient()
 
+  // Load user data and check authentication
   const loadUser = async () => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
@@ -49,18 +64,8 @@ export default function DashboardPage() {
 
       const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
       if (userError) throw userError
-      
-      console.log('User data:', currentUser)
-      setUser(currentUser)
 
-      // Fetch all users - MFA status is automatically synced by database trigger
-      const { data: usersData, error: usersError } = await supabase
-        .from('user_info')
-        .select('*')
-      
-      if (usersError) throw usersError
-      
-      // Get current user's role from user_info table
+      // Fetch user role and additional information
       const { data: currentUserInfo, error: currentUserInfoError } = await supabase
         .from('user_info')
         .select('role')
@@ -68,12 +73,18 @@ export default function DashboardPage() {
         .single()
       
       if (currentUserInfoError) throw currentUserInfoError
+
+      // Fetch all users with their information
+      const { data: usersData, error: usersError } = await supabase
+        .from('user_info')
+        .select('*')
       
-      // Set user with role information
+      if (usersError) throw usersError
+      
       setUser({ ...currentUser, role: currentUserInfo.role })
       setUsers(usersData || [])
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Error loading user data:', error)
       router.push('/login')
     } finally {
       setLoading(false)
@@ -84,6 +95,7 @@ export default function DashboardPage() {
     loadUser()
   }, [])
 
+  // Authentication handlers
   const handleSignOut = async () => {
     try {
       const { error } = await supabase.auth.signOut()
@@ -91,26 +103,31 @@ export default function DashboardPage() {
       router.push('/login')
     } catch (error) {
       console.error('Error signing out:', error)
+      setError('Failed to sign out. Please try again.')
     }
   }
 
+  // MFA handlers
   const handleSetupMFA = async () => {
     try {
       setError(null)
       
-      // First clean up any existing unverified factors
-      const unverifiedFactors = user?.factors?.filter(factor => factor.status === 'unverified' && factor.factor_type === 'totp') || []
+      // Clean up existing unverified factors
+      const unverifiedFactors = user?.factors?.filter(
+        factor => factor.status === 'unverified' && factor.factor_type === 'totp'
+      ) || []
+
       for (const factor of unverifiedFactors) {
         try {
           await supabase.auth.mfa.unenroll({ factorId: factor.id })
         } catch (unenrollError) {
-          // Ignore 404 errors when trying to unenroll non-existent factors
           if (!unenrollError.message?.includes('404')) {
             throw unenrollError
           }
         }
       }
 
+      // Enroll new MFA factor
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
         issuer: 'Next Login',
@@ -124,15 +141,16 @@ export default function DashboardPage() {
       setShowMFASetup(true)
     } catch (error) {
       console.error('Error setting up MFA:', error)
-      setError(error.message)
+      setError('Failed to set up MFA. Please try again.')
     }
   }
 
   const handleDisableMFA = async () => {
     try {
-      const verifiedFactor = user?.factors?.find(factor => 
-        factor.factor_type === 'totp' && factor.status === 'verified'
+      const verifiedFactor = user?.factors?.find(
+        factor => factor.factor_type === 'totp' && factor.status === 'verified'
       )
+      
       if (!verifiedFactor) {
         throw new Error('No verified MFA factor found')
       }
@@ -143,18 +161,16 @@ export default function DashboardPage() {
       if (error) throw error
 
       setShowDisableMFAModal(false)
-      // MFA status will be automatically synced by database trigger
       await loadUser()
 
-      // Show success modal after successful disable
       setSuccessModal({
         isOpen: true,
         title: '2FA Successfully Disabled',
-        message: 'Two-factor authentication has been disabled for your account. You will no longer need to enter a verification code when logging in.'
+        message: 'Two-factor authentication has been disabled for your account.'
       })
     } catch (error) {
       console.error('Error disabling MFA:', error)
-      setError(error.message)
+      setError('Failed to disable MFA. Please try again.')
     }
   }
 
@@ -163,32 +179,28 @@ export default function DashboardPage() {
       if (factorId) {
         await supabase.auth.mfa.unenroll({ factorId })
       }
-      setShowMFASetup(false)
-      setQrCodeUrl(null)
-      setVerificationCode('')
-      setError(null)
-      setFactorId(null)
+      resetMFAState()
       await loadUser()
     } catch (error) {
       console.error('Error canceling MFA setup:', error)
-      setError(error.message)
+      setError('Failed to cancel MFA setup. Please try again.')
     }
   }
 
   const handleVerifyMFA = async (e) => {
     e.preventDefault()
-    if (!verificationCode || verificationCode.length !== 6) {
+    
+    if (!validateVerificationCode(verificationCode)) {
       setError('Please enter a valid 6-digit code')
       return
     }
 
     try {
       setError(null)
-      // First create a challenge
+      
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId })
       if (challengeError) throw challengeError
 
-      // Then verify the challenge
       const { data, error: verifyError } = await supabase.auth.mfa.verify({
         factorId,
         challengeId: challenge.id,
@@ -196,22 +208,31 @@ export default function DashboardPage() {
       })
       if (verifyError) throw verifyError
 
-      // Show success modal using the new component
       setSuccessModal({
         isOpen: true,
         title: '2FA Successfully Enabled',
-        message: 'Two-factor authentication has been successfully enabled for your account. You will need to enter a verification code each time you log in.'
+        message: 'Two-factor authentication has been enabled for your account.'
       })
-      
-      setShowMFASetup(false)
-      setVerificationCode('')
-      
-      // Refresh user data to update MFA status
-      loadUser()
+
+      resetMFAState()
+      await loadUser()
     } catch (error) {
       console.error('Error verifying MFA:', error)
-      setError(error.message)
+      setError('Failed to verify MFA code. Please try again.')
     }
+  }
+
+  // Helper functions
+  const resetMFAState = () => {
+    setShowMFASetup(false)
+    setQrCodeUrl(null)
+    setVerificationCode('')
+    setError(null)
+    setFactorId(null)
+  }
+
+  const validateVerificationCode = (code) => {
+    return code && code.length === 6 && /^\d+$/.test(code)
   }
 
   const handleAddUser = async (e) => {
