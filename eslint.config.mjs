@@ -7,6 +7,7 @@ const __dirname = dirname(__filename);
 
 const compat = new FlatCompat({
   baseDirectory: __dirname,
+  recommendedConfig: { parser: null }
 });
 
 const eslintConfig = [...compat.extends("next/core-web-vitals")];
