@@ -243,6 +243,15 @@ function LoginContent() {
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
                 placeholder="Enter your password"
               />
+              <div className="mt-2 text-right">
+                <button
+                  type="button"
+                  onClick={() => router.push('/reset-password')}
+                  className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                >
+                  Forgot your password?
+                </button>
+              </div>
             </div>
 
             {error && (
