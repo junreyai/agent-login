@@ -93,7 +93,7 @@ function LoginContent() {
               last_name: '',
               email: user.email,
               mfa_enabled: false,
-              role: 'user'
+              role: ''
             }
           ])
         if (insertError) throw insertError
@@ -178,7 +178,7 @@ function LoginContent() {
               last_name: '',
               email: user.email,
               mfa_enabled: false,
-              role: 'user'
+              role: ''
             }
           ])
         if (insertError) throw insertError
