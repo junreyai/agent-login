@@ -9,14 +9,13 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // Helper functions
 const validateUserInput = (data) => {
-  const { firstName, lastName, email, password, role } = data
+  const { firstName, lastName, email, role } = data
   const errors = []
 
   if (!firstName?.trim()) errors.push('First name is required')
   if (!lastName?.trim()) errors.push('Last name is required')
   if (!email?.trim()) errors.push('Email is required')
   if (!EMAIL_REGEX.test(email)) errors.push('Invalid email format')
-  if (!password || password.length < 8) errors.push('Password must be at least 8 characters')
   if (!role || !ALLOWED_ROLES.includes(role)) errors.push('Invalid role')
 
   return errors
@@ -72,57 +71,75 @@ export async function POST(request) {
       )
     }
 
-    const { firstName, lastName, email, password, role } = userData
+    const { firstName, lastName, email, role } = userData
 
     // Create user with admin client
     const adminAuthClient = createSupabaseAdmin()
 
-    // Create user in auth.users
-    const { data: newUser, error: createError } = await adminAuthClient.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        first_name: firstName,
-        last_name: lastName
-      }
-    })
-
-    if (createError) {
-      throw {
-        status: createError.status || 500,
-        message: createError.message || 'Error creating user'
-      }
-    }
-
-    // Update user info
-    const { error: updateError } = await adminAuthClient
-      .from('user_info')
-      .update({
+    // First send the invitation to get the user ID
+    const { data, error: inviteError } = await adminAuthClient.auth.admin.inviteUserByEmail(email, {
+      data: {
         first_name: firstName,
         last_name: lastName,
         role: role
-      })
-      .eq('id', newUser.user.id)
+      },
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?next=/set-password`
+    })
 
-    if (updateError) {
-      // Rollback user creation if user_info update fails
-      await adminAuthClient.auth.admin.deleteUser(newUser.user.id)
+    if (inviteError) {
       throw {
-        status: 500,
-        message: 'Error updating user information'
+        status: inviteError.status || 500,
+        message: inviteError.message || 'Error sending invitation'
+      }
+    }
+
+    // Now check if user_info exists for this user
+    const { data: existingUserInfo } = await adminAuthClient
+      .from('user_info')
+      .select('id')
+      .eq('id', data.user.id)
+      .maybeSingle()
+
+    if (existingUserInfo) {
+      // Update existing user info
+      const { error: updateError } = await adminAuthClient
+        .from('user_info')
+        .update({
+          first_name: firstName,
+          last_name: lastName,
+          role: role
+        })
+        .eq('id', data.user.id)
+
+      if (updateError) {
+        throw {
+          status: updateError.status || 500,
+          message: updateError.message || 'Error updating user info'
+        }
+      }
+    } else {
+      // Create new user info record
+      const { error: createError } = await adminAuthClient
+        .from('user_info')
+        .insert({
+          id: data.user.id,
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+          role: role
+        })
+
+      if (createError) {
+        throw {
+          status: createError.status || 500,
+          message: createError.message || 'Error creating user info'
+        }
       }
     }
 
     return NextResponse.json({
-      success: true,
-      user: {
-        id: newUser.user.id,
-        email: newUser.user.email,
-        firstName,
-        lastName,
-        role
-      }
+      message: 'User invited successfully',
+      user: data.user
     })
   } catch (error) {
     console.error('Error in POST /api/users:', error)
