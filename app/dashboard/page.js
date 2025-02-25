@@ -869,7 +869,7 @@ export default function DashboardPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium space-x-3">
-                          {u.role === 'admin' && (
+                          {user?.role === 'admin' && (
                             <>
                               <button
                                 onClick={() => openEditModal(u)}
