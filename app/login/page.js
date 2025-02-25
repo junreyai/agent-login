@@ -22,6 +22,19 @@ function LoginContent() {
       checkMFAEnrollment()
     }
 
+    // Add keyframes for the ellipsis animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes ellipsis {
+        0% { content: ''; }
+        25% { content: '.'; }
+        50% { content: '..'; }
+        75% { content: '...'; }
+        100% { content: ''; }
+      }
+    `;
+    document.head.appendChild(style);
+
     // Check for invitation hash in URL
     const handleInvitation = async () => {
       if (window.location.hash && window.location.hash.includes('access_token')) {
@@ -53,6 +66,11 @@ function LoginContent() {
     }
 
     handleInvitation()
+
+    // Cleanup style element on unmount
+    return () => {
+      document.head.removeChild(style);
+    };
   }, [])
 
   const checkMFAEnrollment = async () => {
@@ -379,15 +397,3 @@ export default function LoginPage() {
     </Suspense>
   )
 }
-
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes ellipsis {
-    0% { content: ''; }
-    25% { content: '.'; }
-    50% { content: '..'; }
-    75% { content: '...'; }
-    100% { content: ''; }
-  }
-`;
-document.head.appendChild(style);

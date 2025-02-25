@@ -93,7 +93,24 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadUser()
-  }, [])
+
+    // Add keyframes for the ellipsis animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes ellipsis {
+        0% { content: ''; }
+        25% { content: '.'; }
+        50% { content: '..'; }
+        75% { content: '...'; }
+        100% { content: ''; }
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 
   // Authentication handlers
   const handleSignOut = async () => {
@@ -881,16 +898,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-// Add keyframes for the ellipsis animation
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes ellipsis {
-    0% { content: ''; }
-    25% { content: '.'; }
-    50% { content: '..'; }
-    75% { content: '...'; }
-    100% { content: ''; }
-  }
-`;
-document.head.appendChild(style);
