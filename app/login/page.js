@@ -52,7 +52,17 @@ function LoginContent() {
               refresh_token: refreshToken
             })
 
-            if (error) throw error
+            if (error) {
+              console.error('Session error:', error)
+              throw error
+            }
+
+            if (!session) {
+              throw new Error('No session after setting tokens')
+            }
+
+            // Clear the URL hash to prevent re-processing
+            window.history.replaceState(null, '', window.location.pathname)
 
             // Redirect to set password page
             router.push('/set-password')
@@ -60,7 +70,7 @@ function LoginContent() {
           }
         } catch (error) {
           console.error('Error handling invitation:', error)
-          setError('Error processing invitation link')
+          setError(error.message || 'Error processing invitation link')
         }
       }
     }
