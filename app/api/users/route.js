@@ -76,6 +76,10 @@ export async function POST(request) {
     // Create user with admin client
     const adminAuthClient = createSupabaseAdmin()
 
+    // Get the site URL from environment or request URL
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+                   (request.headers.get('origin') || 'http://localhost:3000')
+
     // First send the invitation to get the user ID
     const { data, error: inviteError } = await adminAuthClient.auth.admin.inviteUserByEmail(email, {
       data: {
@@ -83,7 +87,7 @@ export async function POST(request) {
         last_name: lastName,
         role: role
       },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?next=/set-password`
+      redirectTo: `${siteUrl}/auth/callback?next=/set-password`
     })
 
     if (inviteError) {
