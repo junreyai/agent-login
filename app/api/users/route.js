@@ -22,6 +22,9 @@ const validateUserInput = (data) => {
 }
 
 const createSupabaseAdmin = () => {
+  // Get the site URL, ensuring no trailing slash
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
+
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -29,8 +32,12 @@ const createSupabaseAdmin = () => {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
-        detectSessionInUrl: false,
-        site_url: process.env.NEXT_PUBLIC_SITE_URL
+        detectSessionInUrl: false
+      },
+      global: {
+        headers: {
+          'x-site-url': siteUrl // Pass site URL in headers
+        }
       }
     }
   )
@@ -63,14 +70,11 @@ const checkAdminAccess = async (supabase) => {
 
 export async function POST(request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
-    
-    // Verify admin access
-    await checkAdminAccess(supabase)
+    const requestData = await request.json()
+    const { firstName, lastName, email, role } = requestData
 
-    // Validate request body
-    const userData = await request.json()
-    const validationErrors = validateUserInput(userData)
+    // Validate input
+    const validationErrors = validateUserInput({ firstName, lastName, email, role })
     
     if (validationErrors.length > 0) {
       return NextResponse.json(
@@ -79,21 +83,15 @@ export async function POST(request) {
       )
     }
 
-    const { firstName, lastName, email, role } = userData
+    // Check if user has admin access
+    const supabase = createRouteHandlerClient({ cookies })
+    await checkAdminAccess(supabase)
 
     // Create user with admin client
     const adminAuthClient = createSupabaseAdmin()
 
-    // Get the site URL from environment, request origin, or fallback
-    const origin = request.headers.get('origin')
-    const host = request.headers.get('host')
-    const protocol = origin?.startsWith('https') ? 'https:' : 'http:'
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 
-                   origin || 
-                   `${protocol}//${host}` ||
-                   'http://localhost:3000'
-
-    console.log('Using site URL:', siteUrl)
+    // Get the site URL, ensuring no trailing slash
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
 
     // First send the invitation to get the user ID
     const { data, error: inviteError } = await adminAuthClient.auth.admin.inviteUserByEmail(email, {
@@ -102,7 +100,10 @@ export async function POST(request) {
         last_name: lastName,
         role: role
       },
-      redirectTo: `${siteUrl}/auth/callback?next=/set-password`
+      redirectTo: `${siteUrl}/auth/callback?next=/set-password`,
+      options: {
+        emailRedirectTo: siteUrl // Add this to ensure correct redirect
+      }
     })
 
     if (inviteError) {
