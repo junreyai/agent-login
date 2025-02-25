@@ -24,7 +24,15 @@ const validateUserInput = (data) => {
 const createSupabaseAdmin = () => {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+        site_url: process.env.NEXT_PUBLIC_SITE_URL
+      }
+    }
   )
 }
 
@@ -84,6 +92,8 @@ export async function POST(request) {
                    origin || 
                    `${protocol}//${host}` ||
                    'http://localhost:3000'
+
+    console.log('Using site URL:', siteUrl)
 
     // First send the invitation to get the user ID
     const { data, error: inviteError } = await adminAuthClient.auth.admin.inviteUserByEmail(email, {
