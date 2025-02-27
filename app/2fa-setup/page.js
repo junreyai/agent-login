@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import QRCode from 'qrcode';
 import SuccessModal from '@/app/components/SuccessModal';
+import { PageLoading, ButtonLoader } from '@/app/components/LoadingComponents';
 
 export default function TwoFactorSetupPage() {
   // Router and Supabase client initialization
@@ -22,6 +23,7 @@ export default function TwoFactorSetupPage() {
   const [verificationCode, setVerificationCode] = useState('');
   const [factorId, setFactorId] = useState(null);
   const [showDisableMFAModal, setShowDisableMFAModal] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // Modal states
   const [successModal, setSuccessModal] = useState({
@@ -147,6 +149,7 @@ export default function TwoFactorSetupPage() {
 
     try {
       setError(null);
+      setIsVerifying(true);
       
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId });
       if (challengeError) throw challengeError;
@@ -169,6 +172,8 @@ export default function TwoFactorSetupPage() {
     } catch (error) {
       console.error('Error verifying MFA:', error);
       setError('Failed to verify MFA code. Please try again.');
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -187,12 +192,7 @@ export default function TwoFactorSetupPage() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-white dark:bg-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent dark:border-blue-400 dark:border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite] mb-4"></div>
-          <div className="text-blue-600 dark:text-blue-400 animate-pulse">Loading<span className="animate-[ellipsis_1.5s_steps(4,end)_infinite]">...</span></div>
-        </div>
-      </div>
+      <PageLoading message="Loading 2FA setup..." />
     );
   }
 
@@ -280,14 +280,21 @@ export default function TwoFactorSetupPage() {
                         <button
                           type="submit"
                           disabled={verificationCode.length !== 6}
-                          className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors disabled:opacity-50"
+                          className="w-full px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors disabled:opacity-50"
                         >
-                          Verify and Enable
+                          {isVerifying ? (
+                            <div className="flex items-center justify-center">
+                              <ButtonLoader color="blue" className="mr-2" />
+                              Verifying...
+                            </div>
+                          ) : (
+                            'Verify and Activate'
+                          )}
                         </button>
                         <button
                           type="button"
                           onClick={handleCancelMFA}
-                          className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                          className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors"
                         >
                           Cancel
                         </button>

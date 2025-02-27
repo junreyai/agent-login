@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { PageLoading, ButtonLoader } from '../components/LoadingComponents';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -70,11 +71,7 @@ export default function SettingsPage() {
     }
   };
 
-  if (loading) return (
-    <div className="p-8 flex justify-center items-center min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-900">
-      <div className="animate-pulse text-blue-600 dark:text-blue-400 text-xl">Loading...</div>
-    </div>
-  );
+  if (loading) return <PageLoading message="Loading your account settings..." />;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-900">
@@ -141,7 +138,12 @@ export default function SettingsPage() {
                 disabled={updating}
                 className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors disabled:opacity-50"
               >
-                {updating ? 'Updating...' : 'Update Profile'}
+                {updating ? (
+                  <>
+                    <ButtonLoader color="blue" className="mr-2" />
+                    Updating...
+                  </>
+                ) : 'Update Profile'}
               </button>
             </div>
           </form>

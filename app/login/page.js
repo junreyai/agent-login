@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { LoadingSpinner, ButtonLoader } from '../components/LoadingComponents'
 
 function LoginContent() {
   const [email, setEmail] = useState('')
@@ -342,7 +343,7 @@ function LoginContent() {
               >
                 {loading ? (
                   <div className="flex items-center justify-center">
-                    <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin mr-2"></div>
+                    <ButtonLoader color="blue" className="mr-2" />
                     Signing in...
                   </div>
                 ) : (
@@ -387,7 +388,7 @@ function LoginContent() {
               >
                 {loading ? (
                   <div className="flex items-center justify-center">
-                    <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin mr-2"></div>
+                    <ButtonLoader color="blue" className="mr-2" />
                     Verifying...
                   </div>
                 ) : (
@@ -406,10 +407,7 @@ export default function LoginPage() {
   return (
     <Suspense fallback={
       <div className="fixed inset-0 bg-white dark:bg-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent dark:border-blue-400 dark:border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite] mb-4"></div>
-          <div className="text-blue-600 dark:text-blue-400 animate-pulse">Loading<span className="animate-[ellipsis_1.5s_steps(4,end)_infinite]">...</span></div>
-        </div>
+        <LoadingSpinner size="md" color="blue" text="Loading..." />
       </div>
     }>
       <LoginContent />

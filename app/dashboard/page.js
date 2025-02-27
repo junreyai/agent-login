@@ -9,6 +9,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 // Components
 import SuccessModal from '../components/SuccessModal'
+import { PageLoading } from '../components/LoadingComponents'
 
 export default function DashboardPage() {
   // Router and Supabase client initialization
@@ -137,12 +138,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-white dark:bg-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent dark:border-blue-400 dark:border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite] mb-4"></div>
-          <div className="text-blue-600 dark:text-blue-400 animate-pulse">Loading<span className="animate-[ellipsis_1.5s_steps(4,end)_infinite]">...</span></div>
-        </div>
-      </div>
+      <PageLoading message="Loading your dashboard..." />
     )
   }
 
