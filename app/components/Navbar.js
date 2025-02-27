@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import Image from 'next/image'
 
 export default function Navbar({ user }) {
   const router = useRouter()
@@ -23,8 +24,14 @@ export default function Navbar({ user }) {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
-              <img className="h-8 w-auto" src="/next.svg" alt="Logo" />
-              <span className="ml-2 text-xl font-bold text-blue-600 dark:text-blue-400">Next-Login</span>
+              <Image 
+                src="/Logo.png" 
+                alt="Logo" 
+                width={40} 
+                height={40} 
+                className="w-auto h-10"
+                priority
+              />
             </div>
           </div>
           <div className="flex items-center space-x-4">
