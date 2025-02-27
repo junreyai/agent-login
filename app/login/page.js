@@ -46,6 +46,15 @@ function LoginContent() {
           const type = hashParams.get('type')
 
           if (type === 'invite' && accessToken) {
+            // If we're on localhost and NEXT_PUBLIC_SITE_URL is set, redirect to production
+            if (window.location.hostname === 'localhost' && process.env.NEXT_PUBLIC_SITE_URL) {
+              const productionUrl = new URL(process.env.NEXT_PUBLIC_SITE_URL)
+              productionUrl.pathname = '/login'
+              productionUrl.hash = window.location.hash
+              window.location.href = productionUrl.toString()
+              return
+            }
+
             // Set the session using the tokens
             const { data: { session }, error } = await supabase.auth.setSession({
               access_token: accessToken,
@@ -61,7 +70,7 @@ function LoginContent() {
               throw new Error('No session after setting tokens')
             }
 
-            // Clear the URL hash to prevent re-processing
+            // Clear the URL hash
             window.history.replaceState(null, '', window.location.pathname)
 
             // Redirect to set password page
