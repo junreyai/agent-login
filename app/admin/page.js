@@ -60,6 +60,7 @@ export default function AdminPage() {
         .from('user_info')
         .select('role')
         .eq('id', currentUser.id)
+        .single()
       
       if (currentUserInfoError) throw currentUserInfoError
 

@@ -4,10 +4,17 @@ import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useEffect } from 'react'
 
 export default function Navbar({ user }) {
   const router = useRouter()
   const supabase = createClientComponentClient()
+
+  // Debug user object
+  useEffect(() => {
+    console.log('Navbar user:', user)
+    console.log('User role:', user?.role)
+  }, [user])
 
   const handleSignOut = async () => {
     try {
@@ -17,6 +24,11 @@ export default function Navbar({ user }) {
     } catch (error) {
       console.error('Error signing out:', error)
     }
+  }
+
+  const handleAdminClick = () => {
+    console.log('Navigating to admin page')
+    router.push('/admin')
   }
 
   return (
@@ -48,6 +60,18 @@ export default function Navbar({ user }) {
               </svg>
               Settings
             </button>
+            {user && user.role === 'admin' && (
+              <button
+                onClick={handleAdminClick}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors"
+                aria-label="Admin Settings"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Admin Settings
+              </button>
+            )}
             <button
               onClick={handleSignOut}
               className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors"

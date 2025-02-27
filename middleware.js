@@ -40,6 +40,32 @@ export async function middleware(req) {
     }
   }
 
+  // Protect admin route
+  if (req.nextUrl.pathname.startsWith('/admin')) {
+    if (!session) {
+      const loginUrl = new URL('/login', siteUrl)
+      return NextResponse.redirect(loginUrl)
+    }
+    
+    // Check if user is admin
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: userInfo, error } = await supabase
+        .from('user_info')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      
+      if (error || !userInfo || userInfo.role !== 'admin') {
+        const dashboardUrl = new URL('/dashboard', siteUrl)
+        return NextResponse.redirect(dashboardUrl)
+      }
+    } else {
+      const loginUrl = new URL('/login', siteUrl)
+      return NextResponse.redirect(loginUrl)
+    }
+  }
+
   // Handle login page access
   if (req.nextUrl.pathname.startsWith('/login')) {
     if (session) {
@@ -57,6 +83,7 @@ export const config = {
     '/login',
     '/reset-password/:path*',
     '/auth/:path*',
+    '/admin/:path*',
     '/',  
   ],
 }
