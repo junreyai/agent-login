@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import QRCode from 'qrcode';
 import SuccessModal from '@/app/components/SuccessModal';
-import Navbar from '@/app/components/Navbar';
 
 export default function TwoFactorSetupPage() {
   // Router and Supabase client initialization
@@ -203,8 +202,7 @@ export default function TwoFactorSetupPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-900">
-      {/* Navbar Component */}
-      <Navbar user={user} />
+      {/* Navbar is now in the root layout */}
       
       <div className="max-w-4xl mx-auto p-8">
         <h1 className="text-3xl font-bold mb-6 text-blue-800 dark:text-blue-300 text-center">Two-Factor Authentication</h1>
