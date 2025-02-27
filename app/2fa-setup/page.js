@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import QRCode from 'qrcode';
 import SuccessModal from '@/app/components/SuccessModal';
+import Navbar from '@/app/components/Navbar';
 
 export default function TwoFactorSetupPage() {
   // Router and Supabase client initialization
@@ -202,20 +203,10 @@ export default function TwoFactorSetupPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-900">
+      {/* Navbar Component */}
+      <Navbar user={user} />
+      
       <div className="max-w-4xl mx-auto p-8">
-        {/* Navigation Bar */}
-        <nav className="mb-8 flex justify-start">
-          <button 
-            onClick={() => router.push('/settings')}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-            </svg>
-            Back to Settings
-          </button>
-        </nav>
-
         <h1 className="text-3xl font-bold mb-6 text-blue-800 dark:text-blue-300 text-center">Two-Factor Authentication</h1>
         
         <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 mb-6 border border-blue-100 dark:border-blue-900/50 max-w-md mx-auto">
