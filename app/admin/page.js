@@ -245,13 +245,15 @@ export default function AdminPage() {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Admin Header */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Super Admin Settings</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Manage users and system settings
-          </p>
-        </div>
-
+        {(user?.role === 'admin') && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Super Admin Settings</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Manage users and system settings
+            </p>
+          </div>
+        )}
+        
         {/* Main Content */}
         <div className="space-y-8">
           {/* Add User Modal */}

@@ -9,7 +9,6 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 // Components
 import SuccessModal from '../components/SuccessModal'
-import Navbar from '../components/Navbar'
 
 export default function DashboardPage() {
   // Router and Supabase client initialization
@@ -96,9 +95,8 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-800">
-      {/* Navbar Component */}
-      <Navbar user={user} />
-
+      {/* Navbar is now in the root layout */}
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Main Content */}
         <div className="space-y-8">
