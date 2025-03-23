@@ -11,25 +11,53 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import SuccessModal from '../components/SuccessModal'
 import { PageLoading } from '../components/LoadingComponents'
 
+// Utilities
+import useUser from '@/app/utils/useUser'
+
+// Types
+interface Agent {
+  id: number
+  name: string
+  status: 'Active' | 'Inactive'
+  interactions: number
+  successRate: number
+  lastActive: string
+  description: string
+  avatar: string
+}
+
+interface PerformanceMetrics {
+  totalInteractions: number
+  avgResponseTime: string
+  avgSuccessRate: number
+  activeAgents: number
+  totalAgents: number
+}
+
+interface SuccessModalState {
+  isOpen: boolean
+  message: string
+}
+
 export default function DashboardPage() {
   // Router and Supabase client initialization
   const router = useRouter()
   const supabase = createClientComponentClient()
 
-  // User and authentication states
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  // Use our custom hook for user data
+  const { user, loading, error } = useUser({ 
+    redirectIfNotAuthenticated: true,
+    updateLoginTimestamp: true
+  })
 
   // Modal states
-  const [successModal, setSuccessModal] = useState({
+  const [successModal, setSuccessModal] = useState<SuccessModalState>({
     isOpen: false,
-    title: '',
     message: ''
   })
 
   // AI Agent dummy data
-  const [agents] = useState([
+  const [agents] = useState<Agent[]>([
     {
       id: 1,
       name: 'Customer Support Agent',
@@ -73,7 +101,7 @@ export default function DashboardPage() {
   ])
 
   // Agent performance metrics (dummy data)
-  const [performanceMetrics] = useState({
+  const [performanceMetrics] = useState<PerformanceMetrics>({
     totalInteractions: 4518,
     avgResponseTime: '1.8s',
     avgSuccessRate: 94,
@@ -81,45 +109,9 @@ export default function DashboardPage() {
     totalAgents: 4
   })
 
-  // Load user data and check authentication
-  const loadUser = async () => {
-    try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError) throw sessionError
-      
-      if (!session) {
-        router.push('/login')
-        return
-      }
-
-      const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
-      if (userError) throw userError
-
-      // Fetch user role and additional information
-      const { data: currentUserInfo, error: currentUserInfoError } = await supabase
-        .from('user_info')
-        .select('role')
-        .eq('id', currentUser.id)
-        .single()
-      
-      if (currentUserInfoError) throw currentUserInfoError
-
-      const userWithRole = { ...currentUser, role: currentUserInfo.role }
-      console.log('Current user with role:', userWithRole)
-      setUser(userWithRole)
-    } catch (error) {
-      console.error('Error loading user data:', error)
-      router.push('/login')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
-    loadUser()
-
     // Add keyframes for the ellipsis animation
-    const style = document.createElement('style');
+    const style = document.createElement('style')
     style.textContent = `
       @keyframes ellipsis {
         0% { content: ''; }
@@ -128,32 +120,31 @@ export default function DashboardPage() {
         75% { content: '...'; }
         100% { content: ''; }
       }
-    `;
-    document.head.appendChild(style);
+    `
+    document.head.appendChild(style)
 
     return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
+      document.head.removeChild(style)
+    }
+  }, [])
+
+  const handleAgentAction = (agentId: number, action: 'edit' | 'view' | 'toggle'): void => {
+    // Implement agent actions here
+    console.log(`${action} agent ${agentId}`)
+  }
 
   if (loading) {
-    return (
-      <PageLoading message="Loading your dashboard..." />
-    )
+    return <PageLoading message="Loading your dashboard..." />
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-800">
-      {/* Navbar is now in the root layout */}
-      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Main Content */}
         <div className="space-y-8">
           {/* Success Modal */}
           <SuccessModal
             isOpen={successModal.isOpen}
             onClose={() => setSuccessModal({ ...successModal, isOpen: false })}
-            title={successModal.title}
             message={successModal.message}
           />
 
@@ -161,7 +152,10 @@ export default function DashboardPage() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 border-t-4 border-blue-600 dark:border-blue-500">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-6">
               <h1 className="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-400">AI Agent Platform</h1>
-              <button className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+              <button 
+                onClick={() => console.log('Create new agent')}
+                className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+              >
                 + New Agent
               </button>
             </div>
@@ -241,13 +235,26 @@ export default function DashboardPage() {
                         {agent.lastActive}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 mr-3 focus:outline-none focus:underline">Edit</button>
-                        <button className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 mr-3 focus:outline-none focus:underline">View</button>
-                        <button className={`${
-                          agent.status === 'Active' 
-                            ? 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300' 
-                            : 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300'
-                        } focus:outline-none focus:underline`}>
+                        <button 
+                          onClick={() => handleAgentAction(agent.id, 'edit')}
+                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 mr-3 focus:outline-none focus:underline"
+                        >
+                          Edit
+                        </button>
+                        <button 
+                          onClick={() => handleAgentAction(agent.id, 'view')}
+                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 mr-3 focus:outline-none focus:underline"
+                        >
+                          View
+                        </button>
+                        <button 
+                          onClick={() => handleAgentAction(agent.id, 'toggle')}
+                          className={`${
+                            agent.status === 'Active' 
+                              ? 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300' 
+                              : 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300'
+                          } focus:outline-none focus:underline`}
+                        >
                           {agent.status === 'Active' ? 'Deactivate' : 'Activate'}
                         </button>
                       </td>
@@ -294,9 +301,22 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="flex justify-between border-t border-blue-100 dark:border-blue-800 pt-3">
-                    <button className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm focus:outline-none focus:underline">Edit</button>
-                    <button className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm focus:outline-none focus:underline">View</button>
-                    <button className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm focus:outline-none focus:underline">
+                    <button 
+                      onClick={() => handleAgentAction(agent.id, 'edit')}
+                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm focus:outline-none focus:underline"
+                    >
+                      Edit
+                    </button>
+                    <button 
+                      onClick={() => handleAgentAction(agent.id, 'view')}
+                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm focus:outline-none focus:underline"
+                    >
+                      View
+                    </button>
+                    <button 
+                      onClick={() => handleAgentAction(agent.id, 'toggle')}
+                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm focus:outline-none focus:underline"
+                    >
                       {agent.status === 'Active' ? 'Deactivate' : 'Activate'}
                     </button>
                   </div>
@@ -376,7 +396,10 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="mt-4 text-center">
-              <button className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium focus:outline-none focus:underline">
+              <button 
+                onClick={() => console.log('View all interactions')}
+                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium focus:outline-none focus:underline"
+              >
                 View All Interactions →
               </button>
             </div>
@@ -385,4 +408,4 @@ export default function DashboardPage() {
       </div>
     </div>
   )
-}
+} 

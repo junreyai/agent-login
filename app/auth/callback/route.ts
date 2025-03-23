@@ -1,16 +1,17 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import type { Database } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(request) {
+export async function GET(request: Request): Promise<NextResponse> {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
 
   if (code) {
     const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore })
     
     try {
       // Exchange the code for a session
@@ -30,7 +31,7 @@ export async function GET(request) {
       // Redirect to login
       return NextResponse.redirect(new URL('/login', baseUrl))
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Unexpected error:', error)
       return NextResponse.redirect(
         new URL(`/login?error=${encodeURIComponent('An unexpected error occurred')}`, request.url)
@@ -40,4 +41,4 @@ export async function GET(request) {
 
   // If no code, redirect to login
   return NextResponse.redirect(new URL('/login', request.url))
-}
+} 

@@ -1,6 +1,7 @@
-import { Inter } from 'next/font/google'
 import './globals.css'
+import { Inter } from 'next/font/google'
 import NavbarWrapper from './components/NavbarWrapper'
+import type { ReactNode } from 'react'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -9,7 +10,11 @@ export const metadata = {
   description: 'A secure authentication system built with Next.js and Supabase',
 }
 
-export default function RootLayout({ children }) {
+interface RootLayoutProps {
+  children: ReactNode
+}
+
+export default function RootLayout({ children }: RootLayoutProps): JSX.Element {
   return (
     <html lang="en">
       <body className={inter.className}>
@@ -18,4 +23,4 @@ export default function RootLayout({ children }) {
       </body>
     </html>
   )
-}
+} 

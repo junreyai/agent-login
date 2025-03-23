@@ -1,29 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import type { Database } from '@/lib/database.types'
 
-export default function SetPasswordPage() {
+export default function ConfirmPage(): JSX.Element {
   const router = useRouter()
-  const supabase = createClientComponentClient()
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const supabase = createClientComponentClient<Database>()
+  const [password, setPassword] = useState<string>('')
+  const [confirmPassword, setConfirmPassword] = useState<string>('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState<boolean>(false)
 
-  // Check if user is authenticated
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/login')
-      }
-    }
-    checkSession()
-  }, [])
-
-  const handleSetPassword = async (e) => {
+  const handleSetPassword = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     setError(null)
     setLoading(true)
@@ -48,12 +38,9 @@ export default function SetPasswordPage() {
       
       if (error) throw error
 
-      // Sign out after setting password
-      await supabase.auth.signOut()
-
       // Redirect to login
       router.push('/login?message=Password set successfully. Please log in.')
-    } catch (error) {
+    } catch (error: any) {
       setError(error.message)
     } finally {
       setLoading(false)
@@ -66,9 +53,6 @@ export default function SetPasswordPage() {
         <h2 className="text-center text-3xl font-extrabold text-gray-900 dark:text-white">
           Set Your Password
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-          Please set a password for your account
-        </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
@@ -120,7 +104,7 @@ export default function SetPasswordPage() {
                 disabled={loading}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
               >
-                {loading ? 'Setting Password...' : 'Set Password'}
+                {loading ? 'Setting password...' : 'Set Password'}
               </button>
             </div>
           </form>
@@ -128,4 +112,4 @@ export default function SetPasswordPage() {
       </div>
     </div>
   )
-}
+} 

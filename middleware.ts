@@ -1,9 +1,11 @@
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import type { Database } from '@/lib/database.types'
 
-export async function middleware(req) {
+export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req, res })
+  const supabase = createMiddlewareClient<Database>({ req, res })
 
   // Get the site URL
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin
@@ -22,32 +24,29 @@ export async function middleware(req) {
     return NextResponse.redirect(targetUrl)
   }
 
-  // Allow access to auth routes
-  if (req.nextUrl.pathname.startsWith('/auth')) {
+  // Public routes that don't require authentication
+  const publicRoutes = ['/login', '/reset-password', '/auth']
+  const isPublicRoute = publicRoutes.some(route => req.nextUrl.pathname.startsWith(route))
+
+  // If it's a public route and user is authenticated, redirect to dashboard
+  if (isPublicRoute && session) {
+    const dashboardUrl = new URL('/dashboard', siteUrl)
+    return NextResponse.redirect(dashboardUrl)
+  }
+
+  // If it's a public route and user is not authenticated, allow access
+  if (isPublicRoute) {
     return res
   }
 
-  // Allow access to reset password pages
-  if (req.nextUrl.pathname.startsWith('/reset-password')) {
-    return res
+  // For all other routes, require authentication
+  if (!session) {
+    const loginUrl = new URL('/login', siteUrl)
+    return NextResponse.redirect(loginUrl)
   }
 
-  // Protect dashboard route
-  if (req.nextUrl.pathname.startsWith('/dashboard')) {
-    if (!session) {
-      const loginUrl = new URL('/login', siteUrl)
-      return NextResponse.redirect(loginUrl)
-    }
-  }
-
-  // Protect admin route
+  // Special handling for admin route
   if (req.nextUrl.pathname.startsWith('/admin')) {
-    if (!session) {
-      const loginUrl = new URL('/login', siteUrl)
-      return NextResponse.redirect(loginUrl)
-    }
-    
-    // Check if user is admin
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       const { data: userInfo, error } = await supabase
@@ -66,24 +65,11 @@ export async function middleware(req) {
     }
   }
 
-  // Handle login page access
-  if (req.nextUrl.pathname.startsWith('/login')) {
-    if (session) {
-      const dashboardUrl = new URL('/dashboard', siteUrl)
-      return NextResponse.redirect(dashboardUrl)
-    }
-  }
-
   return res
 }
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/login',
-    '/reset-password/:path*',
-    '/auth/:path*',
-    '/admin/:path*',
-    '/',  
+    '/((?!_next/static|_next/image|favicon.ico|logo.png).*)',
   ],
-}
+} 

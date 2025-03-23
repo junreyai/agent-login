@@ -2,14 +2,32 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import type { Database } from '@/lib/database.types'
 
 // Constants
-const ALLOWED_ROLES = ['admin', 'user']
+const ALLOWED_ROLES = ['admin', 'user'] as const
+type Role = typeof ALLOWED_ROLES[number]
+
+interface UpdateInput {
+  firstName: string
+  lastName: string
+  role: Role
+}
+
+interface CustomError extends Error {
+  status?: number
+}
+
+interface RouteParams {
+  params: {
+    id: string
+  }
+}
 
 // Helper functions
-const validateUpdateInput = (data) => {
+const validateUpdateInput = (data: Partial<UpdateInput>): string[] => {
   const { firstName, lastName, role } = data
-  const errors = []
+  const errors: string[] = []
 
   if (!firstName?.trim()) errors.push('First name is required')
   if (!lastName?.trim()) errors.push('Last name is required')
@@ -19,16 +37,24 @@ const validateUpdateInput = (data) => {
 }
 
 const createSupabaseAdmin = () => {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    throw new Error('Missing Supabase environment variables')
+  }
+
+  return createClient<Database>(
+    supabaseUrl,
+    supabaseServiceRoleKey
   )
 }
 
-const checkAdminAccess = async (supabase) => {
+const checkAdminAccess = async (supabase: ReturnType<typeof createRouteHandlerClient<Database>>) => {
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError) throw authError
+    if (!user) throw new Error('No user found')
 
     const { data: userInfo, error: userInfoError } = await supabase
       .from('user_info')
@@ -38,19 +64,20 @@ const checkAdminAccess = async (supabase) => {
     
     if (userInfoError) throw userInfoError
     if (userInfo.role !== 'admin') {
-      throw { status: 403, message: 'Only administrators can modify users' }
+      const error = new Error('Only administrators can modify users') as CustomError
+      error.status = 403
+      throw error
     }
 
     return user
-  } catch (error) {
-    throw {
-      status: error.status || 403,
-      message: error.message || 'Unauthorized access'
-    }
+  } catch (error: any) {
+    const customError = new Error(error.message || 'Unauthorized access') as CustomError
+    customError.status = error.status || 403
+    throw customError
   }
 }
 
-const validateUserId = async (adminClient, userId) => {
+const validateUserId = async (adminClient: ReturnType<typeof createSupabaseAdmin>, userId: string): Promise<void> => {
   const { data, error } = await adminClient
     .from('user_info')
     .select('id')
@@ -58,13 +85,15 @@ const validateUserId = async (adminClient, userId) => {
     .single()
 
   if (error || !data) {
-    throw { status: 404, message: 'User not found' }
+    const customError = new Error('User not found') as CustomError
+    customError.status = 404
+    throw customError
   }
 }
 
-export async function PUT(request, { params }) {
+export async function PUT(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = createRouteHandlerClient<Database>({ cookies })
     
     // Verify admin access
     await checkAdminAccess(supabase)
@@ -80,7 +109,7 @@ export async function PUT(request, { params }) {
       )
     }
 
-    const { firstName, lastName, role } = updateData
+    const { firstName, lastName, role } = updateData as UpdateInput
     const adminAuthClient = createSupabaseAdmin()
 
     // Validate user exists
@@ -98,10 +127,9 @@ export async function PUT(request, { params }) {
       .eq('id', params.id)
 
     if (updateError) {
-      throw {
-        status: 500,
-        message: 'Error updating user information'
-      }
+      const error = new Error('Error updating user information') as CustomError
+      error.status = 500
+      throw error
     }
 
     return NextResponse.json({
@@ -113,7 +141,7 @@ export async function PUT(request, { params }) {
         role
       }
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in PUT /api/users/[id]:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
@@ -122,9 +150,9 @@ export async function PUT(request, { params }) {
   }
 }
 
-export async function DELETE(request, { params }) {
+export async function DELETE(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = createRouteHandlerClient<Database>({ cookies })
     
     // Verify admin access
     await checkAdminAccess(supabase)
@@ -142,10 +170,9 @@ export async function DELETE(request, { params }) {
       .eq('id', params.id)
 
     if (deleteUserInfoError) {
-      throw {
-        status: 500,
-        message: 'Error deleting user information'
-      }
+      const error = new Error('Error deleting user information') as CustomError
+      error.status = 500
+      throw error
     }
 
     // Then delete from auth.users
@@ -166,17 +193,16 @@ export async function DELETE(request, { params }) {
         console.error('Rollback failed:', rollbackError)
       }
 
-      throw {
-        status: 500,
-        message: 'Error deleting user authentication'
-      }
+      const error = new Error('Error deleting user authentication') as CustomError
+      error.status = 500
+      throw error
     }
 
     return NextResponse.json({
       success: true,
       message: 'User successfully deleted'
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in DELETE /api/users/[id]:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
@@ -186,9 +212,9 @@ export async function DELETE(request, { params }) {
 }
 
 // GET single user
-export async function GET(request, { params }) {
+export async function GET(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = createRouteHandlerClient<Database>({ cookies })
     
     // Verify admin access
     await checkAdminAccess(supabase)
@@ -200,15 +226,17 @@ export async function GET(request, { params }) {
       .single()
 
     if (error || !user) {
-      throw { status: 404, message: 'User not found' }
+      const customError = new Error('User not found') as CustomError
+      customError.status = 404
+      throw customError
     }
 
     return NextResponse.json({ user })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in GET /api/users/[id]:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: error.status || 500 }
     )
   }
-}
+} 

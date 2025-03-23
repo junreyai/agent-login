@@ -2,20 +2,29 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import type { Database } from '@/lib/database.types'
 
 // Constants
-const ALLOWED_ROLES = ['admin', 'user']
+const ALLOWED_ROLES = ['admin', 'user'] as const
+type Role = typeof ALLOWED_ROLES[number]
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+interface UserInput {
+  firstName: string
+  lastName: string
+  email: string
+  role: Role
+}
+
 // Helper functions
-const validateUserInput = (data) => {
+const validateUserInput = (data: Partial<UserInput>): string[] => {
   const { firstName, lastName, email, role } = data
-  const errors = []
+  const errors: string[] = []
 
   if (!firstName?.trim()) errors.push('First name is required')
   if (!lastName?.trim()) errors.push('Last name is required')
   if (!email?.trim()) errors.push('Email is required')
-  if (!EMAIL_REGEX.test(email)) errors.push('Invalid email format')
+  if (!email || !EMAIL_REGEX.test(email)) errors.push('Invalid email format')
   if (!role || !ALLOWED_ROLES.includes(role)) errors.push('Invalid role')
 
   return errors
@@ -25,9 +34,16 @@ const createSupabaseAdmin = () => {
   // Get the site URL, ensuring no trailing slash
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
 
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    throw new Error('Missing Supabase environment variables')
+  }
+
+  return createClient<Database>(
+    supabaseUrl,
+    supabaseServiceRoleKey,
     {
       auth: {
         autoRefreshToken: false,
@@ -43,10 +59,15 @@ const createSupabaseAdmin = () => {
   )
 }
 
-const checkAdminAccess = async (supabase) => {
+interface CustomError extends Error {
+  status?: number
+}
+
+const checkAdminAccess = async (supabase: ReturnType<typeof createRouteHandlerClient<Database>>) => {
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError) throw authError
+    if (!user) throw new Error('No user found')
 
     const { data: userInfo, error: userInfoError } = await supabase
       .from('user_info')
@@ -56,22 +77,23 @@ const checkAdminAccess = async (supabase) => {
     
     if (userInfoError) throw userInfoError
     if (userInfo.role !== 'admin') {
-      throw { status: 403, message: 'Only administrators can create new users' }
+      const error = new Error('Only administrators can create new users') as CustomError
+      error.status = 403
+      throw error
     }
 
     return user
-  } catch (error) {
-    throw {
-      status: error.status || 403,
-      message: error.message || 'Unauthorized access'
-    }
+  } catch (error: any) {
+    const customError = new Error(error.message || 'Unauthorized access') as CustomError
+    customError.status = error.status || 403
+    throw customError
   }
 }
 
-export async function POST(request) {
+export async function POST(request: Request): Promise<NextResponse> {
   try {
     const requestData = await request.json()
-    const { firstName, lastName, email, role } = requestData
+    const { firstName, lastName, email, role } = requestData as UserInput
 
     // Validate input
     const validationErrors = validateUserInput({ firstName, lastName, email, role })
@@ -84,7 +106,7 @@ export async function POST(request) {
     }
 
     // Check if user has admin access
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = createRouteHandlerClient<Database>({ cookies })
     await checkAdminAccess(supabase)
 
     // Create user with admin client
@@ -104,10 +126,9 @@ export async function POST(request) {
     })
 
     if (inviteError) {
-      throw {
-        status: inviteError.status || 500,
-        message: inviteError.message || 'Error sending invitation'
-      }
+      const error = new Error(inviteError.message || 'Error sending invitation') as CustomError
+      error.status = 500
+      throw error
     }
 
     // Now check if user_info exists for this user
@@ -129,10 +150,9 @@ export async function POST(request) {
         .eq('id', data.user.id)
 
       if (updateError) {
-        throw {
-          status: updateError.status || 500,
-          message: updateError.message || 'Error updating user info'
-        }
+        const error = new Error(updateError.message || 'Error updating user info') as CustomError
+        error.status = 500
+        throw error
       }
     } else {
       // Create new user info record
@@ -147,10 +167,9 @@ export async function POST(request) {
         })
 
       if (createError) {
-        throw {
-          status: createError.status || 500,
-          message: createError.message || 'Error creating user info'
-        }
+        const error = new Error(createError.message || 'Error creating user info') as CustomError
+        error.status = 500
+        throw error
       }
     }
 
@@ -158,7 +177,7 @@ export async function POST(request) {
       message: 'User invited successfully',
       user: data.user
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in POST /api/users:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
@@ -168,9 +187,9 @@ export async function POST(request) {
 }
 
 // GET method to fetch users (admin only)
-export async function GET() {
+export async function GET(): Promise<NextResponse> {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = createRouteHandlerClient<Database>({ cookies })
     
     // Verify admin access
     await checkAdminAccess(supabase)
@@ -183,11 +202,11 @@ export async function GET() {
     if (error) throw error
 
     return NextResponse.json({ users })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in GET /api/users:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: error.status || 500 }
     )
   }
-}
+} 

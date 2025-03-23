@@ -1,77 +1,61 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { PageLoading, ButtonLoader } from '../components/LoadingComponents';
+import { useState, useEffect, FormEvent } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { PageLoading, ButtonLoader } from '../components/LoadingComponents'
+import useUser from '@/app/utils/useUser'
+import { updateUserProfile } from '@/app/utils/userUtils'
+import type { Database } from '@/lib/database.types'
 
 export default function SettingsPage() {
-  const router = useRouter();
-  const supabase = createClientComponentClient();
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [email, setEmail] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [updating, setUpdating] = useState(false);
-  const [message, setMessage] = useState('');
+  const router = useRouter()
+  const supabase = createClientComponentClient<Database>()
+  
+  // Use our custom hook for user data
+  const { user, loading: userLoading, refreshUser } = useUser({ 
+    redirectIfNotAuthenticated: true 
+  })
+  
+  const [firstName, setFirstName] = useState<string>('')
+  const [lastName, setLastName] = useState<string>('')
+  const [updating, setUpdating] = useState<boolean>(false)
+  const [message, setMessage] = useState<string>('')
 
   useEffect(() => {
-    async function getUser() {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        setUser(user);
-        setEmail(user.email || '');
-        
-        // Fetch user profile information from user_info table
-        const { data: userInfo, error } = await supabase
-          .from('user_info')
-          .select('first_name, last_name, role')
-          .eq('id', user.id)
-          .single();
-        
-        if (userInfo && !error) {
-          setFirstName(userInfo.first_name || '');
-          setLastName(userInfo.last_name || '');
-          setUser({...user, role: userInfo.role}); // Update user with role
-        }
-      } else {
-        router.push('/login');
-      }
-      setLoading(false);
+    if (user) {
+      setFirstName(user.firstName || '')
+      setLastName(user.lastName || '')
     }
-    
-    getUser();
-  }, [router, supabase]);
+  }, [user])
 
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-    setUpdating(true);
-    setMessage('');
+  const handleUpdateProfile = async (e: FormEvent) => {
+    e.preventDefault()
+    setUpdating(true)
+    setMessage('')
     
     try {
-      // Update user profile information in user_info table
-      const { error } = await supabase
-        .from('user_info')
-        .update({
-          first_name: firstName,
-          last_name: lastName
-        })
-        .eq('id', user.id);
-      
-      if (error) throw error;
-      
-      setMessage('Profile updated successfully!');
-    } catch (error) {
-      setMessage(`Error updating profile: ${error.message}`);
-    } finally {
-      setUpdating(false);
-    }
-  };
+      if (!user) {
+        throw new Error('User not found')
+      }
 
-  if (loading) return <PageLoading message="Loading your account settings..." />;
+      const { success, error } = await updateUserProfile(user.id, {
+        first_name: firstName,
+        last_name: lastName
+      })
+      
+      if (!success) throw new Error(error || 'Failed to update profile')
+      
+      setMessage('Profile updated successfully!')
+      refreshUser() // Refresh user data
+    } catch (error: any) {
+      setMessage(`Error updating profile: ${error.message}`)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  if (userLoading) return <PageLoading message="Loading your account settings..." />
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-900">
@@ -118,8 +102,8 @@ export default function SettingsPage() {
               <input
                 id="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={user?.email || ''}
+                onChange={() => {}}
                 className="w-full px-3 py-2 border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
                 disabled
               />
@@ -140,7 +124,7 @@ export default function SettingsPage() {
               >
                 {updating ? (
                   <>
-                    <ButtonLoader color="blue" className="mr-2" />
+                    <ButtonLoader color="blue" size="small" className="mr-2" />
                     Updating...
                   </>
                 ) : 'Update Profile'}
@@ -171,5 +155,5 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
-  );
-}
+  )
+} 

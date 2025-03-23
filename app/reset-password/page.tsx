@@ -1,16 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function ResetPassword() {
-  const [email, setEmail] = useState('')
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+export default function ResetPassword(): JSX.Element {
+  const [email, setEmail] = useState<string>('')
+  const [message, setMessage] = useState<string>('')
+  const [error, setError] = useState<string>('')
+  const [isLoading, setIsLoading] = useState<boolean>(false)
   const router = useRouter()
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
@@ -33,7 +33,7 @@ export default function ResetPassword() {
 
       setMessage(data.message)
       setEmail('')
-    } catch (error) {
+    } catch (error: any) {
       setError(error.message)
     } finally {
       setIsLoading(false)
@@ -113,4 +113,4 @@ export default function ResetPassword() {
       </div>
     </div>
   )
-}
+} 
