@@ -244,7 +244,7 @@ export default function TwoFactorSetupPage() {
   }
 
   const validateVerificationCode = (code: string): boolean => {
-    return code && code.length === 6 && /^\d+$/.test(code)
+    return Boolean(code && code.length === 6 && /^\d+$/.test(code))
   }
 
   if (loading) {

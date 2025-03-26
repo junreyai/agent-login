@@ -38,7 +38,7 @@ export async function fetchCurrentUser(): Promise<{ user: EnhancedUser | null; e
       const defaultUserInfo = {
         first_name: '',
         last_name: '',
-        role: 'user'
+        role: 'user' as const
       }
       
       await supabase
