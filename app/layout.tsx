@@ -1,5 +1,6 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
+import { ThemeProvider } from 'next-themes'
 import NavbarWrapper from './components/NavbarWrapper'
 import type { ReactNode } from 'react'
 
@@ -16,10 +17,12 @@ interface RootLayoutProps {
 
 export default function RootLayout({ children }: RootLayoutProps): JSX.Element {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <NavbarWrapper />
-        {children}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <NavbarWrapper />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )

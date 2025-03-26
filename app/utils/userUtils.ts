@@ -4,6 +4,8 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/lib/database.types'
 import type { UserInfo, EnhancedUser, FetchUsersOptions, FetchUsersResponse, ProfileData } from './types'
 
+type UserRole = 'user' | 'admin'
+
 /**
  * Fetch the current authenticated user with their profile information
  */
@@ -210,21 +212,48 @@ export async function checkFirstTimeLogin(userId: string): Promise<boolean> {
   const supabase = createClientComponentClient<Database>()
   
   try {
-    const { data: userInfo, error } = await supabase
+    // First check if user exists in user_info table
+    const { data: userInfo, error: userError } = await supabase
       .from('user_info')
-      .select('last_login')
+      .select('created_at, updated_at')
       .eq('id', userId)
       .single()
     
-    if (error) {
-      console.error('Error checking first time login:', error)
+    // If user doesn't exist in user_info, create entry and return true
+    if (userError && (userError.code === 'PGRST116' || userError.message?.includes('not found'))) {
+      const defaultRole: UserRole = 'user'
+      const now = new Date().toISOString()
+      const defaultUserInfo: Database['public']['Tables']['user_info']['Insert'] = {
+        id: userId,
+        role: defaultRole,
+        created_at: now,
+        updated_at: now,
+        two_factor_enabled: false
+      }
+      
+      const { error: insertError } = await supabase
+        .from('user_info')
+        .insert(defaultUserInfo)
+      
+      if (insertError) {
+        console.error('Error creating user_info entry:', insertError)
+        return false
+      }
+      
       return true
     }
     
-    return !userInfo.last_login
+    // If there was a different error, don't treat as first time login
+    if (userError) {
+      console.error('Error checking first time login:', userError)
+      return false
+    }
+    
+    // If user exists but updated_at equals created_at, it's their first time
+    return userInfo.updated_at === userInfo.created_at
   } catch (error) {
     console.error('Error checking first time login:', error)
-    return true
+    return false // Don't treat errors as first time login
   }
 }
 
@@ -235,15 +264,51 @@ export async function updateLastLogin(userId: string): Promise<void> {
   const supabase = createClientComponentClient<Database>()
   
   try {
-    const { error } = await supabase
+    // First check if the user exists
+    const { data: userInfo, error: checkError } = await supabase
       .from('user_info')
-      .update({ last_login: new Date().toISOString() })
+      .select('id')
+      .eq('id', userId)
+      .single()
+    
+    if (checkError) {
+      // If user doesn't exist, create a new entry
+      if (checkError.code === 'PGRST116' || checkError.message?.includes('not found')) {
+        const defaultRole: UserRole = 'user'
+        const defaultUserInfo: Database['public']['Tables']['user_info']['Insert'] = {
+          id: userId,
+          role: defaultRole,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          two_factor_enabled: false
+        }
+        
+        const { error: insertError } = await supabase
+          .from('user_info')
+          .insert(defaultUserInfo)
+        
+        if (insertError) {
+          console.error('Error creating user_info entry:', insertError)
+        }
+        return
+      }
+      
+      console.error('Error checking user_info:', checkError)
+      return
+    }
+    
+    // Update the user's last activity timestamp
+    const { error: updateError } = await supabase
+      .from('user_info')
+      .update({ 
+        updated_at: new Date().toISOString()
+      })
       .eq('id', userId)
     
-    if (error) {
-      console.error('Error updating last login:', error)
+    if (updateError) {
+      console.error('Error updating user activity:', updateError)
     }
   } catch (error) {
-    console.error('Error updating last login:', error)
+    console.error('Error in updateLastLogin:', error)
   }
 } 

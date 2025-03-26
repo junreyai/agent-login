@@ -80,38 +80,26 @@ export default function useAdmin(): UseAdminReturn {
     }
     
     try {
-      // Create the user in auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: userData.email,
-        password: Math.random().toString(36).slice(-10), // Generate random password
-        email_confirm: true,
-        user_metadata: {
-          first_name: userData.firstName,
-          last_name: userData.lastName
-        }
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData)
       })
+
+      const data = await response.json()
       
-      if (authError) throw authError
-      
-      // Add user to user_info table
-      const { error: profileError } = await supabase
-        .from('user_info')
-        .insert({
-          id: authData.user.id,
-          email: userData.email,
-          first_name: userData.firstName,
-          last_name: userData.lastName,
-          role: userData.role || 'user'
-        })
-      
-      if (profileError) throw profileError
-      
-      return { success: true, user: authData.user, error: null }
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create user')
+      }
+
+      return { success: true, user: data.user, error: null }
     } catch (err: any) {
       console.error('Error creating user:', err)
       return { success: false, user: null, error: err.message }
     }
-  }, [user, supabase])
+  }, [user])
   
   // Function to update a user
   const updateUser = useCallback(async (userData: EnhancedUser) => {
@@ -120,34 +108,30 @@ export default function useAdmin(): UseAdminReturn {
     }
     
     try {
-      // Update user_info table
-      const { error: profileError } = await supabase
-        .from('user_info')
-        .update({
-          first_name: userData.firstName,
-          last_name: userData.lastName,
+      const response = await fetch(`/api/admin/users/${userData.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: userData.firstName,
+          lastName: userData.lastName,
           role: userData.role
         })
-        .eq('id', userData.id)
+      })
+
+      const data = await response.json()
       
-      if (profileError) throw profileError
-      
-      // Update email if provided and changed
-      if (userData.email) {
-        const { error: emailError } = await supabase.auth.admin.updateUserById(
-          userData.id,
-          { email: userData.email, email_confirm: true }
-        )
-        
-        if (emailError) throw emailError
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update user')
       }
-      
+
       return { success: true, error: null }
     } catch (err: any) {
       console.error('Error updating user:', err)
       return { success: false, error: err.message }
     }
-  }, [user, supabase])
+  }, [user])
   
   // Function to delete a user
   const deleteUser = useCallback(async (userData: EnhancedUser) => {
@@ -156,19 +140,22 @@ export default function useAdmin(): UseAdminReturn {
     }
     
     try {
-      // Delete the user from auth
-      const { error: authError } = await supabase.auth.admin.deleteUser(userData.id)
+      const response = await fetch(`/api/admin/users/${userData.id}`, {
+        method: 'DELETE',
+      })
+
+      const data = await response.json()
       
-      if (authError) throw authError
-      
-      // The user_info entry should be automatically deleted via RLS policies or triggers
-      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete user')
+      }
+
       return { success: true, error: null }
     } catch (err: any) {
       console.error('Error deleting user:', err)
       return { success: false, error: err.message }
     }
-  }, [user, supabase])
+  }, [user])
   
   return {
     users,

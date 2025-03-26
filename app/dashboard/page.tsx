@@ -138,9 +138,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-indigo-950 dark:to-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-8">
+        <div className="space-y-6">
           {/* Success Modal */}
           <SuccessModal
             isOpen={successModal.isOpen}
@@ -148,114 +148,178 @@ export default function DashboardPage() {
             message={successModal.message}
           />
 
-          {/* AI Agent Dashboard Header */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 border-t-4 border-blue-600 dark:border-blue-500">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-6">
-              <h1 className="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-400">AI Agent Platform</h1>
+          {/* Dashboard Header with New Logo */}
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-indigo-100 dark:border-indigo-900">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-8">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg">
+                  <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">AI Command Center</h1>
+                  <p className="text-gray-600 dark:text-gray-400">Manage your AI agents efficiently</p>
+                </div>
+              </div>
               <button 
                 onClick={() => console.log('Create new agent')}
-                className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-xl focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center justify-center space-x-2"
               >
-                + New Agent
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                <span>New Agent</span>
               </button>
             </div>
             
-            {/* Performance Overview */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-              <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
-                <p className="text-sm text-blue-600 dark:text-blue-300">Total Interactions</p>
-                <p className="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-400">{performanceMetrics.totalInteractions}</p>
-              </div>
-              <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
-                <p className="text-sm text-blue-600 dark:text-blue-300">Avg. Response Time</p>
-                <p className="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-400">{performanceMetrics.avgResponseTime}</p>
-              </div>
-              <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
-                <p className="text-sm text-blue-600 dark:text-blue-300">Success Rate</p>
-                <p className="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-400">{performanceMetrics.avgSuccessRate}%</p>
-              </div>
-              <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
-                <p className="text-sm text-blue-600 dark:text-blue-300">Active Agents</p>
-                <p className="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-400">{performanceMetrics.activeAgents}/{performanceMetrics.totalAgents}</p>
-              </div>
-              <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
-                <p className="text-sm text-blue-600 dark:text-blue-300">System Status</p>
-                <p className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400">Healthy</p>
-              </div>
+            {/* Performance Overview Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              {[
+                {
+                  label: 'Total Interactions',
+                  value: performanceMetrics.totalInteractions,
+                  icon: (
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                  )
+                },
+                {
+                  label: 'Avg. Response Time',
+                  value: performanceMetrics.avgResponseTime,
+                  icon: (
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                  )
+                },
+                {
+                  label: 'Success Rate',
+                  value: `${performanceMetrics.avgSuccessRate}%`,
+                  icon: (
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                  )
+                },
+                {
+                  label: 'Active Agents',
+                  value: `${performanceMetrics.activeAgents}/${performanceMetrics.totalAgents}`,
+                  icon: (
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                  )
+                },
+                {
+                  label: 'System Status',
+                  value: 'Healthy',
+                  icon: (
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                  )
+                }
+              ].map((metric, index) => (
+                <div key={index} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-indigo-50 dark:border-indigo-900 hover:shadow-lg transition-shadow duration-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg text-indigo-600 dark:text-indigo-400">
+                      {metric.icon}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{metric.label}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{metric.value}</p>
+                </div>
+              ))}
             </div>
           </div>
 
           {/* Agent List */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 border-t-4 border-blue-600 dark:border-blue-500">
-            <h2 className="text-lg sm:text-xl font-semibold mb-4 text-blue-700 dark:text-blue-400">Your AI Agents</h2>
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-indigo-100 dark:border-indigo-900">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Your AI Agents</h2>
+              <div className="flex items-center space-x-2">
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                  <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                  </svg>
+                </button>
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                  <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
             
             {/* Desktop table view (hidden on mobile) */}
             <div className="hidden md:block overflow-x-auto">
-              <table className="min-w-full divide-y divide-blue-200 dark:divide-blue-800">
-                <thead className="bg-blue-50 dark:bg-blue-900/30">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-600 dark:text-blue-300 uppercase tracking-wider">Agent</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-600 dark:text-blue-300 uppercase tracking-wider">Status</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-600 dark:text-blue-300 uppercase tracking-wider">Interactions</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-600 dark:text-blue-300 uppercase tracking-wider">Success Rate</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-600 dark:text-blue-300 uppercase tracking-wider">Last Active</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-600 dark:text-blue-300 uppercase tracking-wider">Actions</th>
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-gray-900/50">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Agent</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Interactions</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Success Rate</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Active</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-blue-100 dark:divide-blue-800">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {agents.map((agent) => (
-                    <tr key={agent.id} className="hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                    <tr key={agent.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center bg-blue-100 dark:bg-blue-900 rounded-full text-xl border-2 border-blue-300 dark:border-blue-700">
+                          <div className="flex-shrink-0 h-12 w-12 flex items-center justify-center bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 rounded-xl text-xl shadow-inner">
                             {agent.avatar}
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-blue-700 dark:text-blue-400">{agent.name}</div>
-                            <div className="text-sm text-blue-600/70 dark:text-blue-300/70">{agent.description}</div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{agent.name}</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">{agent.description}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                           agent.status === 'Active' 
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
-                            : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                            : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
                         }`}>
                           {agent.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 dark:text-blue-300">
-                        {agent.interactions}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 dark:text-white">{agent.interactions}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 dark:text-blue-300">
-                        {agent.successRate}%
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="flex-grow bg-gray-200 dark:bg-gray-700 rounded-full h-2 w-24 mr-2">
+                            <div 
+                              className="bg-green-500 dark:bg-green-400 h-2 rounded-full"
+                              style={{ width: `${agent.successRate}%` }}
+                            />
+                          </div>
+                          <span className="text-sm text-gray-900 dark:text-white">{agent.successRate}%</span>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 dark:text-blue-300">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {agent.lastActive}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                         <button 
                           onClick={() => handleAgentAction(agent.id, 'edit')}
-                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 mr-3 focus:outline-none focus:underline"
+                          className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 focus:outline-none focus:underline"
                         >
                           Edit
                         </button>
                         <button 
                           onClick={() => handleAgentAction(agent.id, 'view')}
-                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 mr-3 focus:outline-none focus:underline"
+                          className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 focus:outline-none focus:underline"
                         >
                           View
-                        </button>
-                        <button 
-                          onClick={() => handleAgentAction(agent.id, 'toggle')}
-                          className={`${
-                            agent.status === 'Active' 
-                              ? 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300' 
-                              : 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300'
-                          } focus:outline-none focus:underline`}
-                        >
-                          {agent.status === 'Active' ? 'Deactivate' : 'Activate'}
                         </button>
                       </td>
                     </tr>
@@ -312,12 +376,6 @@ export default function DashboardPage() {
                       className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm focus:outline-none focus:underline"
                     >
                       View
-                    </button>
-                    <button 
-                      onClick={() => handleAgentAction(agent.id, 'toggle')}
-                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm focus:outline-none focus:underline"
-                    >
-                      {agent.status === 'Active' ? 'Deactivate' : 'Activate'}
                     </button>
                   </div>
                 </div>

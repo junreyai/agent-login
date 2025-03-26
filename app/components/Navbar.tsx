@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { ButtonLoader } from './LoadingComponents'
+import ThemeToggle from './ThemeToggle'
 import type { Database } from '@/lib/database.types'
 
 interface User {
@@ -56,32 +57,34 @@ export default function Navbar({ user }: NavbarProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <div className="flex-shrink-0 flex items-center">
-              <Link href="/dashboard" className="cursor-pointer">
-                <Image 
-                  src="/logo.png" 
-                  alt="Logo" 
-                  width={32} 
-                  height={32} 
-                  className="h-8 w-auto" 
-                />
+            <div className="flex items-center">
+              <Link href="/dashboard" className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                Next-Login
               </Link>
-              <span className="ml-2 text-xl font-semibold text-gray-900 dark:text-white">Next-Login</span>
             </div>
-            <div className="hidden md:ml-6 md:flex md:space-x-8">
-              <Link href="/dashboard" className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+            <div className="hidden md:ml-8 md:flex md:space-x-8">
+              <Link 
+                href="/dashboard" 
+                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 dark:text-gray-100 border-b-2 border-transparent hover:border-blue-500 dark:hover:border-blue-400 transition-colors"
+              >
                 Dashboard
               </Link>
-              <Link href="/settings" className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">
+              <Link 
+                href="/settings" 
+                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white border-b-2 border-transparent hover:border-blue-500 dark:hover:border-blue-400 transition-colors"
+              >
                 Settings
               </Link>
-              <Link href="/2fa-setup" className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">
+              <Link 
+                href="/2fa-setup" 
+                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white border-b-2 border-transparent hover:border-blue-500 dark:hover:border-blue-400 transition-colors"
+              >
                 2FA Setup
               </Link>
               {showAdminButton && (
                 <Link
                   href="/admin"
-                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white border-b-2 border-transparent hover:border-blue-500 dark:hover:border-blue-400 transition-colors"
                 >
                   Admin
                 </Link>
@@ -89,14 +92,15 @@ export default function Navbar({ user }: NavbarProps) {
             </div>
           </div>
           <div className="flex items-center space-x-4">
+            <ThemeToggle />
             <button
               onClick={handleSignOut}
               disabled={signingOut}
-              className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50 rounded-lg transition-colors disabled:opacity-50"
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               {signingOut ? (
                 <>
-                  <ButtonLoader color="blue" size="small" className="mr-2" />
+                  <ButtonLoader color="white" size="small" className="mr-2" />
                   Signing Out...
                 </>
               ) : (

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { fetchCurrentUser, updateLastLogin, checkFirstTimeLogin } from './userUtils'
+import { fetchCurrentUser, updateLastLogin } from './userUtils'
 import type { Database } from '@/lib/database.types'
 import type { EnhancedUser } from '@/app/utils/types'
 
@@ -29,26 +29,38 @@ export default function useUser({
   const [user, setUser] = useState<EnhancedUser | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const [isRedirecting, setIsRedirecting] = useState<boolean>(false)
   
   const router = useRouter()
   const supabase = createClientComponentClient<Database>()
   
+  const redirect = useCallback((path: string) => {
+    if (!isRedirecting) {
+      setIsRedirecting(true)
+      router.push(path)
+    }
+  }, [isRedirecting, router])
+  
   // Function to load user data
   const loadUser = useCallback(async () => {
+    if (isRedirecting) return
+    
     try {
       const { user, error: fetchError } = await fetchCurrentUser()
       
       if (fetchError) {
         setError(fetchError)
+        setUser(null)
         if (redirectIfNotAuthenticated) {
-          router.push('/login')
+          redirect('/login')
         }
         return
       }
       
       if (!user) {
+        setUser(null)
         if (redirectIfNotAuthenticated) {
-          router.push('/login')
+          redirect('/login')
         }
         return
       }
@@ -56,11 +68,13 @@ export default function useUser({
       // Check if admin role is required
       if (adminRequired && user.role !== 'admin') {
         setError('Admin access required')
-        router.push('/dashboard')
+        setUser(null)
+        redirect('/dashboard')
         return
       }
       
       setUser(user)
+      setError(null)
       
       // Update last login timestamp if requested
       if (updateLoginTimestamp && user.id) {
@@ -68,19 +82,22 @@ export default function useUser({
       }
     } catch (err: any) {
       setError(err.message)
+      setUser(null)
       if (redirectIfNotAuthenticated) {
-        router.push('/login')
+        redirect('/login')
       }
     } finally {
       setLoading(false)
     }
-  }, [adminRequired, redirectIfNotAuthenticated, router, updateLoginTimestamp])
+  }, [adminRequired, redirectIfNotAuthenticated, redirect, updateLoginTimestamp, isRedirecting])
   
   // Function to refresh user data
   const refreshUser = useCallback(async () => {
-    setLoading(true)
-    await loadUser()
-  }, [loadUser])
+    if (!isRedirecting) {
+      setLoading(true)
+      await loadUser()
+    }
+  }, [loadUser, isRedirecting])
   
   // Function to sign out
   const signOut = useCallback(async () => {
@@ -89,6 +106,7 @@ export default function useUser({
       if (error) throw error
       
       setUser(null)
+      setError(null)
       window.location.href = '/login'
     } catch (err: any) {
       setError(err.message)
@@ -97,13 +115,23 @@ export default function useUser({
   
   // Load user data on mount and set up auth state change listener
   useEffect(() => {
-    loadUser()
+    let mounted = true
+    
+    const initialize = async () => {
+      if (mounted && !isRedirecting) {
+        await loadUser()
+      }
+    }
+    
+    initialize()
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted || isRedirecting) return
+      
       if (event === 'SIGNED_OUT') {
         setUser(null)
         if (redirectIfNotAuthenticated) {
-          router.push('/login')
+          redirect('/login')
         }
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         loadUser()
@@ -111,9 +139,10 @@ export default function useUser({
     })
     
     return () => {
+      mounted = false
       subscription.unsubscribe()
     }
-  }, [loadUser, redirectIfNotAuthenticated, router, supabase])
+  }, [loadUser, redirectIfNotAuthenticated, redirect, supabase, isRedirecting])
   
   return {
     user,
