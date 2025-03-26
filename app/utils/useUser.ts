@@ -15,7 +15,6 @@ interface UseUserOptions {
 
 interface UseUserReturn {
   user: EnhancedUser | null
-  loading: boolean
   error: string | null
   refreshUser: () => Promise<void>
   signOut: () => Promise<void>
@@ -27,7 +26,6 @@ export default function useUser({
   updateLoginTimestamp = false
 }: UseUserOptions = {}): UseUserReturn {
   const [user, setUser] = useState<EnhancedUser | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [isRedirecting, setIsRedirecting] = useState<boolean>(false)
   
@@ -46,7 +44,17 @@ export default function useUser({
     if (isRedirecting) return
     
     try {
-      const { user, error: fetchError } = await fetchCurrentUser()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      if (!authUser) {
+        setUser(null)
+        if (redirectIfNotAuthenticated) {
+          redirect('/login')
+        }
+        return
+      }
+
+      const { user: enhancedUser, error: fetchError } = await fetchCurrentUser()
       
       if (fetchError) {
         setError(fetchError)
@@ -57,7 +65,7 @@ export default function useUser({
         return
       }
       
-      if (!user) {
+      if (!enhancedUser) {
         setUser(null)
         if (redirectIfNotAuthenticated) {
           redirect('/login')
@@ -66,19 +74,19 @@ export default function useUser({
       }
       
       // Check if admin role is required
-      if (adminRequired && user.role !== 'admin') {
+      if (adminRequired && enhancedUser.role !== 'admin') {
         setError('Admin access required')
         setUser(null)
         redirect('/dashboard')
         return
       }
       
-      setUser(user)
+      setUser(enhancedUser)
       setError(null)
       
       // Update last login timestamp if requested
-      if (updateLoginTimestamp && user.id) {
-        updateLastLogin(user.id).catch(console.error)
+      if (updateLoginTimestamp && enhancedUser.id) {
+        updateLastLogin(enhancedUser.id).catch(console.error)
       }
     } catch (err: any) {
       setError(err.message)
@@ -86,15 +94,12 @@ export default function useUser({
       if (redirectIfNotAuthenticated) {
         redirect('/login')
       }
-    } finally {
-      setLoading(false)
     }
-  }, [adminRequired, redirectIfNotAuthenticated, redirect, updateLoginTimestamp, isRedirecting])
+  }, [adminRequired, redirectIfNotAuthenticated, redirect, updateLoginTimestamp, isRedirecting, supabase])
   
   // Function to refresh user data
   const refreshUser = useCallback(async () => {
     if (!isRedirecting) {
-      setLoading(true)
       await loadUser()
     }
   }, [loadUser, isRedirecting])
@@ -107,11 +112,11 @@ export default function useUser({
       
       setUser(null)
       setError(null)
-      window.location.href = '/login'
+      router.push('/login')
     } catch (err: any) {
       setError(err.message)
     }
-  }, [supabase])
+  }, [supabase, router])
   
   // Load user data on mount and set up auth state change listener
   useEffect(() => {
@@ -125,7 +130,7 @@ export default function useUser({
     
     initialize()
     
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted || isRedirecting) return
       
       if (event === 'SIGNED_OUT') {
@@ -134,7 +139,7 @@ export default function useUser({
           redirect('/login')
         }
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        loadUser()
+        await loadUser()
       }
     })
     
@@ -146,7 +151,6 @@ export default function useUser({
   
   return {
     user,
-    loading,
     error,
     refreshUser,
     signOut

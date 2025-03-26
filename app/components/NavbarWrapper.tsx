@@ -4,7 +4,6 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Navbar from './Navbar'
-import { LoadingSpinner } from './LoadingComponents'
 import type { Database } from '@/lib/database.types'
 
 interface UserInfo {
@@ -17,7 +16,6 @@ const PUBLIC_ROUTES = ['/login', '/reset-password', '/auth']
 
 export default function NavbarWrapper() {
   const [user, setUser] = useState<UserInfo | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const pathname = usePathname()
   const supabase = createClientComponentClient<Database>()
@@ -28,7 +26,6 @@ export default function NavbarWrapper() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        setLoading(true)
         setError(null)
 
         const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
@@ -56,8 +53,6 @@ export default function NavbarWrapper() {
         console.error('Error fetching user:', err)
         setError(err.message)
         setUser(null)
-      } finally {
-        setLoading(false)
       }
     }
 
@@ -65,7 +60,6 @@ export default function NavbarWrapper() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       try {
-        setLoading(true)
         setError(null)
 
         if (session?.user) {
@@ -87,8 +81,6 @@ export default function NavbarWrapper() {
         console.error('Error handling auth change:', err)
         setError(err.message)
         setUser(null)
-      } finally {
-        setLoading(false)
       }
     })
 
@@ -96,20 +88,6 @@ export default function NavbarWrapper() {
       subscription.unsubscribe()
     }
   }, [supabase])
-
-  // Don't render navbar on public routes
-  if (isPublicRoute) {
-    return null
-  }
-
-  // Show loading spinner while fetching user data
-  if (loading) {
-    return (
-      <div className="h-16 bg-white dark:bg-gray-800 shadow-md flex items-center justify-center">
-        <LoadingSpinner size="small" />
-      </div>
-    )
-  }
 
   // Don't render navbar when user is not authenticated
   if (!user) {
