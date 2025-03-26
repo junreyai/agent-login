@@ -24,7 +24,7 @@ interface GatepassStats {
 export default function DashboardPage() {
   const router = useRouter()
   const supabase = createClientComponentClient<Database>()
-  const { user } = useUser({ 
+  const { user, isLoading } = useUser({ 
     redirectIfNotAuthenticated: true,
     updateLoginTimestamp: true
   })
@@ -38,7 +38,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      if (user) {
+      if (!user) return
+
+      try {
         // TODO: Replace with actual Supabase query
         // This is placeholder data
         setStats({
@@ -47,11 +49,43 @@ export default function DashboardPage() {
           approved: 110,
           rejected: 15
         })
+      } catch (error) {
+        console.error('Error fetching stats:', error)
       }
     }
-    fetchStats()
+
+    if (user) {
+      fetchStats()
+    }
   }, [user])
 
+  // Show a minimal loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+          <div className="animate-pulse space-y-8">
+            <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="bg-white overflow-hidden shadow rounded-lg p-5">
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 bg-gray-200 rounded-md"></div>
+                    <div className="ml-5 w-full">
+                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="mt-2 h-6 bg-gray-200 rounded w-1/4"></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // If no user and not loading, return null (middleware will handle redirect)
   if (!user) {
     return null
   }

@@ -1,98 +1,135 @@
 'use client'
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
-import Navbar from './Navbar'
+import { usePathname, useRouter } from 'next/navigation'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/lib/database.types'
-
-interface UserInfo {
-  id: string
-  role: 'user' | 'admin'
-  [key: string]: any
-}
-
-const PUBLIC_ROUTES = ['/login', '/reset-password', '/auth']
+import Navbar from './Navbar'
 
 export default function NavbarWrapper() {
-  const [user, setUser] = useState<UserInfo | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [user, setUser] = useState<any>(null)
   const pathname = usePathname()
+  const router = useRouter()
   const supabase = createClientComponentClient<Database>()
 
-  // Check if current route is public
-  const isPublicRoute = PUBLIC_ROUTES.some(route => pathname?.startsWith(route))
+  // Check if the current route is public
+  const isPublicRoute = ['/login', '/register'].includes(pathname || '')
 
   useEffect(() => {
-    const fetchUser = async () => {
+    let mounted = true
+
+    const checkUser = async () => {
+      if (isPublicRoute) return
+
       try {
-        setError(null)
-
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+        // Get the current session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         
-        if (authError) {
-          throw authError
-        }
-
-        if (authUser) {
-          const { data: userInfo, error: userError } = await supabase
-            .from('user_info')
-            .select('*')
-            .eq('id', authUser.id)
-            .single()
-
-          if (userError && !userError.message.includes('not found')) {
-            throw userError
+        if (sessionError || !session?.user) {
+          if (mounted) {
+            setUser(null)
+            router.replace('/login')
           }
-
-          setUser(userInfo ? { ...authUser, ...userInfo } : authUser)
-        } else {
-          setUser(null)
+          return
         }
-      } catch (err: any) {
-        console.error('Error fetching user:', err)
-        setError(err.message)
-        setUser(null)
+
+        // Fetch additional user info from user_info table
+        const { data: userInfo, error: userError } = await supabase
+          .from('user_info')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+
+        if (userError && !userError.message.includes('not found')) {
+          console.error('Error fetching user info:', userError)
+        }
+
+        // Combine session user data with user_info data
+        if (mounted) {
+          setUser({
+            ...session.user,
+            ...(userInfo || {}),
+          })
+        }
+      } catch (error) {
+        console.error('Error in checkUser:', error)
+        if (mounted) {
+          setUser(null)
+          router.replace('/login')
+        }
       }
     }
 
-    fetchUser()
+    checkUser()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return
+
       try {
-        setError(null)
+        switch (event) {
+          case 'SIGNED_IN':
+            if (session?.user) {
+              // Fetch user info on sign in
+              const { data: userInfo, error: userError } = await supabase
+                .from('user_info')
+                .select('*')
+                .eq('id', session.user.id)
+                .single()
 
-        if (session?.user) {
-          const { data: userInfo, error: userError } = await supabase
-            .from('user_info')
-            .select('*')
-            .eq('id', session.user.id)
-            .single()
+              if (userError && !userError.message.includes('not found')) {
+                console.error('Error fetching user info:', userError)
+              }
 
-          if (userError && !userError.message.includes('not found')) {
-            throw userError
-          }
+              setUser({
+                ...session.user,
+                ...(userInfo || {}),
+              })
+            }
+            break
 
-          setUser(userInfo ? { ...session.user, ...userInfo } : session.user)
-        } else {
-          setUser(null)
+          case 'SIGNED_OUT':
+            setUser(null)
+            router.replace('/login')
+            break
+
+          case 'TOKEN_REFRESHED':
+            if (session?.user) {
+              // Refresh user info on token refresh
+              const { data: userInfo, error: userError } = await supabase
+                .from('user_info')
+                .select('*')
+                .eq('id', session.user.id)
+                .single()
+
+              if (userError && !userError.message.includes('not found')) {
+                console.error('Error fetching user info:', userError)
+              }
+
+              setUser({
+                ...session.user,
+                ...(userInfo || {}),
+              })
+            }
+            break
         }
-      } catch (err: any) {
-        console.error('Error handling auth change:', err)
-        setError(err.message)
+      } catch (error) {
+        console.error('Error handling auth state change:', error)
         setUser(null)
+        router.replace('/login')
       }
     })
 
     return () => {
+      mounted = false
       subscription.unsubscribe()
     }
-  }, [supabase])
+  }, [supabase, isPublicRoute, router])
 
-  // Don't render navbar when user is not authenticated
-  if (!user) {
+  // Don't show navbar on public routes
+  if (isPublicRoute) {
     return null
   }
 
-  return <Navbar user={user} />
+  // Show navbar if we have a user
+  return user ? <Navbar user={user} /> : null
 } 

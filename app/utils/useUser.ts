@@ -16,6 +16,7 @@ interface UseUserOptions {
 interface UseUserReturn {
   user: EnhancedUser | null
   error: string | null
+  isLoading: boolean
   refreshUser: () => Promise<void>
   signOut: () => Promise<void>
 }
@@ -27,131 +28,162 @@ export default function useUser({
 }: UseUserOptions = {}): UseUserReturn {
   const [user, setUser] = useState<EnhancedUser | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [isRedirecting, setIsRedirecting] = useState<boolean>(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [sessionChecked, setSessionChecked] = useState(false)
   
   const router = useRouter()
   const supabase = createClientComponentClient<Database>()
   
-  const redirect = useCallback((path: string) => {
-    if (!isRedirecting) {
-      setIsRedirecting(true)
-      router.push(path)
+  // Function to handle authentication errors
+  const handleAuthError = useCallback((err: any, shouldRedirect: boolean = true) => {
+    console.error('Authentication error:', err)
+    setError(err.message || 'Authentication failed')
+    setUser(null)
+    if (shouldRedirect && redirectIfNotAuthenticated) {
+      router.replace('/login')
     }
-  }, [isRedirecting, router])
-  
+  }, [redirectIfNotAuthenticated, router])
+
   // Function to load user data
-  const loadUser = useCallback(async () => {
-    if (isRedirecting) return
-    
+  const loadUser = useCallback(async (session?: any) => {
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      
-      if (!authUser) {
-        setUser(null)
-        if (redirectIfNotAuthenticated) {
-          redirect('/login')
-        }
+      // Get session if not provided
+      if (!session) {
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
+        if (sessionError) throw sessionError
+        session = currentSession
+      }
+
+      // Check if user is authenticated
+      if (!session?.user) {
+        handleAuthError(new Error('No active session'))
         return
       }
 
+      // Fetch enhanced user data
       const { user: enhancedUser, error: fetchError } = await fetchCurrentUser()
       
       if (fetchError) {
-        setError(fetchError)
-        setUser(null)
-        if (redirectIfNotAuthenticated) {
-          redirect('/login')
-        }
-        return
+        throw new Error(fetchError)
       }
       
       if (!enhancedUser) {
-        setUser(null)
-        if (redirectIfNotAuthenticated) {
-          redirect('/login')
-        }
+        handleAuthError(new Error('User data not found'))
         return
       }
       
-      // Check if admin role is required
+      // Check admin role if required
       if (adminRequired && enhancedUser.role !== 'admin') {
         setError('Admin access required')
         setUser(null)
-        redirect('/dashboard')
+        router.replace('/dashboard')
         return
       }
       
+      // Update user state
       setUser(enhancedUser)
       setError(null)
       
       // Update last login timestamp if requested
       if (updateLoginTimestamp && enhancedUser.id) {
-        updateLastLogin(enhancedUser.id).catch(console.error)
+        await updateLastLogin(enhancedUser.id)
       }
     } catch (err: any) {
-      setError(err.message)
-      setUser(null)
-      if (redirectIfNotAuthenticated) {
-        redirect('/login')
-      }
+      handleAuthError(err)
+    } finally {
+      setIsLoading(false)
     }
-  }, [adminRequired, redirectIfNotAuthenticated, redirect, updateLoginTimestamp, isRedirecting, supabase])
+  }, [adminRequired, updateLoginTimestamp, supabase, router, handleAuthError])
   
   // Function to refresh user data
   const refreshUser = useCallback(async () => {
-    if (!isRedirecting) {
-      await loadUser()
-    }
-  }, [loadUser, isRedirecting])
+    setIsLoading(true)
+    await loadUser()
+  }, [loadUser])
   
   // Function to sign out
   const signOut = useCallback(async () => {
     try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
+      setIsLoading(true)
+      const { error: signOutError } = await supabase.auth.signOut()
+      if (signOutError) throw signOutError
       
       setUser(null)
       setError(null)
-      router.push('/login')
+      router.replace('/login')
     } catch (err: any) {
+      console.error('Sign out error:', err)
       setError(err.message)
+    } finally {
+      setIsLoading(false)
     }
   }, [supabase, router])
   
-  // Load user data on mount and set up auth state change listener
+  // Initialize session check
   useEffect(() => {
     let mounted = true
-    
-    const initialize = async () => {
-      if (mounted && !isRedirecting) {
-        await loadUser()
+
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        if (sessionError) throw sessionError
+        
+        if (!sessionChecked && mounted) {
+          setSessionChecked(true)
+          await loadUser(session)
+        }
+      } catch (error) {
+        console.error('Session check error:', error)
+        if (mounted) {
+          setIsLoading(false)
+          setSessionChecked(true)
+        }
       }
     }
-    
-    initialize()
-    
+
+    if (!sessionChecked) {
+      checkSession()
+    }
+
+    return () => {
+      mounted = false
+    }
+  }, [sessionChecked, supabase, loadUser])
+  
+  // Set up auth state change listener
+  useEffect(() => {
+    if (!sessionChecked) return
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted || isRedirecting) return
-      
-      if (event === 'SIGNED_OUT') {
-        setUser(null)
-        if (redirectIfNotAuthenticated) {
-          redirect('/login')
-        }
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        await loadUser()
+      switch (event) {
+        case 'SIGNED_OUT':
+          setUser(null)
+          setError(null)
+          setIsLoading(false)
+          if (redirectIfNotAuthenticated) {
+            router.replace('/login')
+          }
+          break
+        case 'SIGNED_IN':
+        case 'TOKEN_REFRESHED':
+          setIsLoading(true)
+          await loadUser(session)
+          break
+        case 'USER_UPDATED':
+          await refreshUser()
+          break
       }
     })
     
     return () => {
-      mounted = false
       subscription.unsubscribe()
     }
-  }, [loadUser, redirectIfNotAuthenticated, redirect, supabase, isRedirecting])
+  }, [sessionChecked, loadUser, refreshUser, redirectIfNotAuthenticated, router, supabase])
   
   return {
     user,
     error,
+    isLoading,
     refreshUser,
     signOut
   }

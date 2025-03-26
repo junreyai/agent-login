@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useEffect } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import type { Database } from '@/lib/database.types'
 import Image from 'next/image'
@@ -14,36 +14,59 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [showMFAPrompt, setShowMFAPrompt] = useState(false)
   const [verificationCode, setVerificationCode] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClientComponentClient<Database>()
+
+  // Check if we're already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        router.replace('/dashboard')
+      }
+    }
+    checkSession()
+  }, [supabase.auth, router])
 
   const handleSignIn = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
+    setIsLoading(true)
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data: { session, user }, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (error) throw error
 
-      if (data?.user) {
-        router.refresh()
-        router.push('/dashboard')
+      if (session) {
+        // Get the redirect URL from query params or default to dashboard
+        const redirectTo = searchParams.get('redirect') || '/dashboard'
+        router.replace(redirectTo)
+      } else if (user && !user.email_confirmed_at) {
+        setError('Please verify your email address')
+        setIsLoading(false)
+      } else {
+        throw new Error('Authentication failed')
       }
     } catch (error: any) {
+      console.error('Sign in error:', error)
       setError(error.message)
+      setIsLoading(false)
     }
   }
 
   const handleVerifyMFA = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
+    setIsLoading(true)
 
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
+      const { data: { session }, error } = await supabase.auth.verifyOtp({
         email,
         token: verificationCode,
         type: 'email',
@@ -51,12 +74,16 @@ export default function LoginPage() {
 
       if (error) throw error
 
-      if (data) {
-        router.refresh()
-        router.push('/dashboard')
+      if (session) {
+        const redirectTo = searchParams.get('redirect') || '/dashboard'
+        router.replace(redirectTo)
+      } else {
+        throw new Error('Verification failed')
       }
     } catch (error: any) {
+      console.error('MFA verification error:', error)
       setError(error.message)
+      setIsLoading(false)
     }
   }
 
@@ -96,6 +123,7 @@ export default function LoginPage() {
                       name="email"
                       type="email"
                       required
+                      disabled={isLoading}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rose-400 focus:border-transparent"
@@ -112,24 +140,27 @@ export default function LoginPage() {
                       name="password"
                       type="password"
                       required
+                      disabled={isLoading}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rose-400 focus:border-transparent"
                       placeholder="Enter your password"
+                      autoComplete="current-password"
                     />
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full bg-rose-400 text-white py-2 px-4 rounded-md hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2"
+                    disabled={isLoading}
+                    className="w-full bg-rose-400 text-white py-2 px-4 rounded-md hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Sign in
+                    {isLoading ? 'Signing in...' : 'Sign in'}
                   </button>
 
                   <div className="text-center">
                     <Link
                       href="/reset-password"
-                      className="text-sm text-rose-500 hover:text-rose-600"
+                      className={`text-sm text-rose-500 hover:text-rose-600 ${isLoading ? 'pointer-events-none opacity-50' : ''}`}
                     >
                       Forgot your password?
                     </Link>
@@ -146,6 +177,7 @@ export default function LoginPage() {
                       name="verificationCode"
                       type="text"
                       required
+                      disabled={isLoading}
                       value={verificationCode}
                       onChange={(e) => setVerificationCode(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rose-400 focus:border-transparent"
@@ -155,9 +187,10 @@ export default function LoginPage() {
 
                   <button
                     type="submit"
-                    className="w-full bg-rose-400 text-white py-2 px-4 rounded-md hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2"
+                    disabled={isLoading}
+                    className="w-full bg-rose-400 text-white py-2 px-4 rounded-md hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Verify Code
+                    {isLoading ? 'Verifying...' : 'Verify Code'}
                   </button>
                 </div>
               )}

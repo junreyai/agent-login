@@ -3,73 +3,69 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import type { Database } from '@/lib/database.types'
 
+const PUBLIC_ROUTES = ['/login', '/reset-password', '/auth']
+
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   const supabase = createMiddlewareClient<Database>({ req, res })
 
-  // Get the site URL
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin
+  try {
+    // Refresh session if expired
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession()
 
-  // Get session
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  // Check if this is an invitation URL that needs to be rewritten
-  const url = req.nextUrl.clone()
-  if (url.hash && url.hash.includes('access_token') && url.hash.includes('type=invite')) {
-    const targetUrl = new URL(siteUrl)
-    targetUrl.hash = url.hash
-    targetUrl.pathname = '/login'
-    return NextResponse.redirect(targetUrl)
-  }
-
-  // Public routes that don't require authentication
-  const publicRoutes = ['/login', '/reset-password', '/auth']
-  const isPublicRoute = publicRoutes.some(route => req.nextUrl.pathname.startsWith(route))
-
-  // If it's a public route and user is authenticated, redirect to dashboard
-  if (isPublicRoute && session) {
-    const dashboardUrl = new URL('/dashboard', siteUrl)
-    return NextResponse.redirect(dashboardUrl)
-  }
-
-  // If it's a public route and user is not authenticated, allow access
-  if (isPublicRoute) {
-    return res
-  }
-
-  // For all other routes, require authentication
-  if (!session) {
-    const loginUrl = new URL('/login', siteUrl)
-    return NextResponse.redirect(loginUrl)
-  }
-
-  // Special handling for admin route
-  if (req.nextUrl.pathname.startsWith('/admin')) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const { data: userInfo, error } = await supabase
-        .from('user_info')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-      
-      if (error || !userInfo || userInfo.role !== 'admin') {
-        const dashboardUrl = new URL('/dashboard', siteUrl)
-        return NextResponse.redirect(dashboardUrl)
-      }
-    } else {
-      const loginUrl = new URL('/login', siteUrl)
-      return NextResponse.redirect(loginUrl)
+    if (sessionError) {
+      throw sessionError
     }
-  }
 
-  return res
+    // Check if the current route is public
+    const isPublicRoute = PUBLIC_ROUTES.some(route => 
+      req.nextUrl.pathname.startsWith(route)
+    )
+
+    // Handle authentication based on route type
+    if (!session && !isPublicRoute) {
+      // If no session and trying to access protected route, redirect to login
+      const redirectUrl = new URL('/login', req.url)
+      redirectUrl.searchParams.set('redirect', req.nextUrl.pathname)
+      return NextResponse.redirect(redirectUrl)
+    }
+
+    if (session && isPublicRoute) {
+      // If has session and trying to access public route, redirect to dashboard
+      return NextResponse.redirect(new URL('/dashboard', req.url))
+    }
+
+    // Update session in response
+    if (session) {
+      res.headers.set('x-supabase-auth', JSON.stringify({ 
+        access_token: session.access_token,
+        expires_at: session.expires_at 
+      }))
+    }
+
+    return res
+  } catch (error) {
+    // On error, clear session and redirect to login
+    console.error('Middleware error:', error)
+    await supabase.auth.signOut()
+    const redirectUrl = new URL('/login', req.url)
+    return NextResponse.redirect(redirectUrl)
+  }
 }
 
+// Specify which routes should trigger this middleware
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|logo.png).*)',
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 } 

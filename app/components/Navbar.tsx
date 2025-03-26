@@ -4,13 +4,15 @@ import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect } from 'react'
 import type { Database } from '@/lib/database.types'
 
 interface User {
   id: string
-  role: 'user' | 'admin'
+  role?: string
   email?: string
+  app_metadata?: {
+    role?: string
+  }
   [key: string]: any
 }
 
@@ -22,33 +24,22 @@ export default function Navbar({ user }: NavbarProps) {
   const router = useRouter()
   const supabase = createClientComponentClient<Database>()
 
-  // Debug user object
-  useEffect(() => {
-    console.log('Navbar user:', user)
-    console.log('User role:', user?.role)
-    console.log('User full data:', JSON.stringify(user, null, 2))
-  }, [user])
-
   const handleSignOut = async (): Promise<void> => {
     try {
       const { error } = await supabase.auth.signOut()
       if (error) throw error
       
-      // Clear any local storage items if needed
-      localStorage.removeItem('supabase.auth.token')
-      
-      // Redirect to login page
       router.push('/login')
     } catch (error) {
       console.error('Error signing out:', error)
     }
   }
 
-  // Admin button visibility
-  const showAdminButton = user && user.role === 'admin'
+  // Check for admin role in either user.role or user.app_metadata.role
+  const isAdmin = user?.role === 'admin' || user?.app_metadata?.role === 'admin'
 
   return (
-    <nav className="">
+    <nav className="bg-white shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -82,7 +73,7 @@ export default function Navbar({ user }: NavbarProps) {
               >
                 2FA Setup
               </Link>
-              {showAdminButton && (
+              {isAdmin && (
                 <Link
                   href="/admin"
                   className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-rose-500 border-b-2 border-transparent hover:border-rose-400 transition-colors"
@@ -92,7 +83,8 @@ export default function Navbar({ user }: NavbarProps) {
               )}
             </div>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center space-x-4">
+            <span className="text-sm text-gray-600">{user?.email}</span>
             <button
               onClick={handleSignOut}
               className="inline-flex items-center p-2 text-sm font-medium text-white bg-rose-400 hover:bg-rose-500 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-400"
